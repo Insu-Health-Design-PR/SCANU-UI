@@ -55,15 +55,6 @@ function isLoopbackHost(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
 }
 
-function toUrlOrNull(input: string | undefined): URL | null {
-  if (!input) return null;
-  try {
-    return new URL(input);
-  } catch {
-    return null;
-  }
-}
-
 function resolveApiBase(): string {
   const envApiBase = import.meta.env.VITE_LAYER8_API_BASE as string | undefined;
   if (typeof window === 'undefined') return envApiBase ?? 'http://127.0.0.1:8088';
@@ -72,11 +63,6 @@ function resolveApiBase(): string {
   const browserIsLocal = isLoopbackHost(browserHost);
   const localDefault = 'http://127.0.0.1:8088';
   const sameHostDefault = `${window.location.protocol}//${browserHost}:8088`;
-  const envUrl = toUrlOrNull(envApiBase);
-
-  if (browserIsLocal && envUrl && !isLoopbackHost(envUrl.hostname)) {
-    return localDefault;
-  }
 
   return envApiBase ?? (browserIsLocal ? localDefault : sameHostDefault);
 }
@@ -84,14 +70,6 @@ function resolveApiBase(): string {
 function resolveWsEventsUrl(apiBase: string): string {
   const envWs = import.meta.env.VITE_LAYER8_WS_URL as string | undefined;
   if (typeof window === 'undefined') return envWs ?? `${apiBase.replace(/^http/i, 'ws')}/ws/events`;
-
-  const browserHost = window.location.hostname;
-  const browserIsLocal = isLoopbackHost(browserHost);
-  const envWsUrl = toUrlOrNull(envWs);
-
-  if (browserIsLocal && envWsUrl && !isLoopbackHost(envWsUrl.hostname)) {
-    return `${apiBase.replace(/^http/i, 'ws')}/ws/events`;
-  }
 
   return envWs ?? `${apiBase.replace(/^http/i, 'ws')}/ws/events`;
 }
