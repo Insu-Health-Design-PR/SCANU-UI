@@ -195,11 +195,17 @@ export function LayoutPreviewModal({
 
   useEffect(() => {
     if (!open) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
   }, [open, onClose]);
 
   const handlePreviewLayout = () => {
@@ -222,40 +228,46 @@ export function LayoutPreviewModal({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.16 }}
           onClick={onClose}
-          className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/88 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[300] flex items-start justify-center overflow-y-auto bg-slate-950/88 p-3 py-4 backdrop-blur-sm sm:p-4"
         >
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="layout-preview-title"
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             onClick={(event) => event.stopPropagation()}
-            className="w-full max-w-7xl rounded-[2rem] border border-cyan-400/15 bg-[linear-gradient(180deg,rgba(12,19,32,0.98),rgba(8,13,23,0.96))] p-5 shadow-panel"
+            className="max-h-[calc(100dvh-2rem)] w-full max-w-7xl overflow-y-auto rounded-[1.25rem] border border-cyan-400/15 bg-[linear-gradient(180deg,rgba(12,19,32,0.98),rgba(8,13,23,0.96))] p-4 shadow-panel sm:rounded-[2rem] sm:p-5"
           >
-            <div className="mb-4 flex items-center justify-between gap-4 rounded-2xl border border-white/10 px-4 py-3">
-              <h3 className="text-2xl font-medium text-white">Layout Preview: {layout}</h3>
-              <div className="flex items-center gap-3">
+            <div className="mb-4 flex flex-col items-start justify-between gap-3 rounded-2xl border border-white/10 px-4 py-3 sm:flex-row sm:items-center">
+              <h3 id="layout-preview-title" className="text-xl font-medium text-white sm:text-2xl">
+                Layout Preview: {layout}
+              </h3>
+              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-3">
                 <button
                   data-testid="apply-layout"
                   onClick={onApply}
-                  className="rounded-xl border border-cyan-400/25 bg-cyan-400/12 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/20"
+                  className="rounded-xl border border-cyan-400/25 bg-cyan-400/12 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/20 sm:px-4"
                 >
                   Apply Layout
                 </button>
                 <button
                   onClick={onBack}
-                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/10 sm:px-4"
                 >
                   Back
                 </button>
                 <button
                   data-testid="close-layout-preview"
                   onClick={onClose}
-                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10"
+                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/10 sm:px-4"
                 >
                   Close
                 </button>
                 <button
+                  aria-label="Close layout preview"
                   onClick={onClose}
                   className="rounded-full border border-white/10 bg-white/5 p-2 text-slate-300 transition hover:bg-white/10"
                 >
