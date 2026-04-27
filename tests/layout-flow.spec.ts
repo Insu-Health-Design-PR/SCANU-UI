@@ -4,6 +4,7 @@ const LAYOUT_OPTION_2_CAMERAS = '[data-testid="layout-option-2-cameras"]';
 const VIEW_LAYOUT_BUTTON = '[data-testid="view-layout-button"]';
 const OPEN_PREVIEW_BUTTON = '[data-testid="open-layout-preview"]';
 const APPLY_LAYOUT_BUTTON = '[data-testid="apply-layout"]';
+const CLOSE_LAYOUT_BUTTON = '[data-testid="close-layout-preview"]';
 
 const PREFS_KEY = 'scanu-layer8-ui-prefs';
 
@@ -34,4 +35,31 @@ test('layout flow persists after refresh', async ({ page }) => {
   }, PREFS_KEY);
 
   expect(afterReload).toBe(beforeReload);
+});
+
+test('layout preview modal stays usable in constrained viewports', async ({ page }) => {
+  const viewports = [
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+    { width: 1280, height: 650 },
+  ];
+
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+
+    await page.getByTestId('view-layout-button').click();
+    await page.getByTestId('open-layout-preview').last().click();
+
+    const dialog = page.getByRole('dialog', { name: /layout preview/i });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toBeInViewport();
+    await expect(dialog.getByTestId('apply-layout')).toBeInViewport();
+    await expect(dialog.getByRole('button', { name: 'Back' })).toBeInViewport();
+    await expect(dialog.locator(CLOSE_LAYOUT_BUTTON)).toBeInViewport();
+    await expect(dialog.getByRole('button', { name: 'Close layout preview' })).toBeInViewport();
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  }
 });
