@@ -51,6 +51,25 @@ interface ControlResult {
   details?: string | null;
 }
 
+export interface ThermalStatusResponse {
+  running?: boolean;
+  status?: string;
+  state?: string;
+  enabled?: boolean;
+  thermal_device?: string | null;
+  device?: string | null;
+  message?: string;
+  [key: string]: unknown;
+}
+
+export interface ThermalControlResult {
+  success?: boolean;
+  status?: string;
+  message?: string;
+  detail?: string;
+  [key: string]: unknown;
+}
+
 function isLoopbackHost(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
 }
@@ -90,6 +109,12 @@ function eventsSocketUrl(): string {
   return url.toString();
 }
 
+function mediaUrl(path: string): string {
+  const url = new URL(path, API_BASE);
+  if (API_KEY) url.searchParams.set('token', API_KEY);
+  return url.toString();
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url, { headers: authHeaders({ Accept: 'application/json' }) });
   if (!response.ok) {
@@ -101,6 +126,32 @@ async function fetchJson<T>(url: string): Promise<T> {
 async function postJson<T>(url: string, body: Record<string, unknown>): Promise<T> {
   const response = await fetch(url, {
     method: 'POST',
+    headers: authHeaders({
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${url}`);
+  }
+  return (await response.json()) as T;
+}
+
+async function postEmpty<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: authHeaders({ Accept: 'application/json' }),
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${url}`);
+  }
+  return (await response.json()) as T;
+}
+
+async function putJson<T>(url: string, body: Record<string, unknown>): Promise<T> {
+  const response = await fetch(url, {
+    method: 'PUT',
     headers: authHeaders({
       Accept: 'application/json',
       'Content-Type': 'application/json',
@@ -438,6 +489,8 @@ function toUnavailableSnapshot(reason: string): DashboardSnapshot {
 }
 
 export const dashboardApi = {
+  apiBase: API_BASE,
+
   async fetchSnapshot(): Promise<DashboardSnapshot> {
     try {
       const [status, health, alertsResponse, visual] = await Promise.all([
@@ -454,6 +507,38 @@ export const dashboardApi = {
 
   createEventsSocket(): WebSocket {
     return new WebSocket(eventsSocketUrl());
+  },
+
+  thermalPreviewUrl(): string {
+    return mediaUrl('/api/thermal/preview/live');
+  },
+
+  async fetchThermalConfig(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/thermal/config`);
+  },
+
+  async updateThermalConfig(thermal: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return putJson<Record<string, unknown>>(`${API_BASE}/api/thermal/config`, { thermal });
+  },
+
+  async autoConfigureThermal(): Promise<ThermalControlResult> {
+    return postEmpty<ThermalControlResult>(`${API_BASE}/api/thermal/auto_configure`);
+  },
+
+  async fetchThermalStatus(): Promise<ThermalStatusResponse> {
+    return fetchJson<ThermalStatusResponse>(`${API_BASE}/api/thermal/status`);
+  },
+
+  async runThermal(): Promise<ThermalControlResult> {
+    return postEmpty<ThermalControlResult>(`${API_BASE}/api/thermal/run`);
+  },
+
+  async stopThermal(): Promise<ThermalControlResult> {
+    return postEmpty<ThermalControlResult>(`${API_BASE}/api/thermal/stop`);
+  },
+
+  async restartThermal(): Promise<ThermalControlResult> {
+    return postEmpty<ThermalControlResult>(`${API_BASE}/api/thermal/restart`);
   },
 
   async fetchUiPrefs(): Promise<Partial<UiPreferences> | null> {

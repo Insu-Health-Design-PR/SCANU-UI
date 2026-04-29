@@ -63,6 +63,25 @@ Run against local Jetson/backend on `127.0.0.1:8088`:
 npm run dev
 ```
 
+Run against the Jetson over Tailscale from Adrian's Mac:
+
+```bash
+cp .env.tailscale.example .env.local
+npm run dev
+```
+
+This points the frontend at:
+
+```text
+http://100.92.1.128:8088
+```
+
+The thermal panel consumes the backend MJPEG stream directly from:
+
+```text
+GET /api/thermal/preview/live
+```
+
 Run against a Cloudflare Tunnel from local development:
 
 ```bash
@@ -109,4 +128,3 @@ Install Command: npm ci
 ## Security Note
 
 The API key is demo-level protection because Vercel browser environment variables are visible in the built frontend. For production-grade protection, put Cloudflare Access, VPN/private tunnel, or an auth proxy in front of the Jetson backend.
-
