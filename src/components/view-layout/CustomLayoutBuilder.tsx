@@ -1,3 +1,4 @@
+import { Button } from '@/components/shared/Button';
 import type { CustomLayoutModules, FocusView, LayoutStyle } from '@/types/layout';
 
 interface CustomLayoutBuilderProps {
@@ -89,31 +90,27 @@ export function CustomLayoutBuilder({
           <div className="text-sm font-medium text-white">Main module</div>
           <div className="mt-3 grid gap-2">
             {focusCandidates.map((candidate) => (
-              <button
+              <Button
                 key={candidate.key}
-                type="button"
+                variant={candidate.key === focusView ? 'primary' : 'secondary'}
                 disabled={!candidate.enabled}
                 onClick={() => onSelectFocusView(candidate.key)}
-                className={
-                  candidate.key === focusView
-                    ? 'rounded-xl border border-cyan-400/25 bg-cyan-400/12 px-3 py-2 text-left text-sm text-cyan-100'
-                    : 'rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-slate-300 disabled:opacity-40'
-                }
+                className="justify-start"
               >
                 {candidate.label}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
       )}
 
-      <button
-        type="button"
+      <Button
+        variant="primary"
+        className="w-full"
         onClick={onPreviewLayout}
-        className="w-full rounded-xl border border-cyan-400/25 bg-cyan-400/12 px-4 py-2.5 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/20"
       >
         Preview Layout
-      </button>
+      </Button>
     </div>
   );
 }

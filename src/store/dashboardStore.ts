@@ -109,6 +109,20 @@ function saveScenes(scenes: TempScene[]) {
 const prefs = loadPrefs();
 const initialScenes = loadScenes();
 
+/**
+ * Helper to extract and persist preferences from store state
+ */
+function persistPrefs(state: DashboardStore) {
+  const prefsOnly: UiPreferences = {
+    appliedLayout: state.appliedLayout,
+    previewLayout: state.previewLayout,
+    focusView: state.focusView,
+    layoutStyle: state.layoutStyle,
+    customModules: state.customModules,
+  };
+  savePrefs(prefsOnly);
+}
+
 export const useDashboardStore = create<DashboardStore>((set, get) => ({
   appliedLayout: prefs.appliedLayout,
   previewLayout: prefs.previewLayout,
@@ -127,51 +141,23 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     if (!remote) return;
     const normalized = normalizePrefs(remote);
     set(normalized);
-    savePrefs(normalized);
+    persistPrefs(get());
   },
   setPreviewLayout: (previewLayout) => {
     set({ previewLayout });
-    const state = get();
-    savePrefs({
-      appliedLayout: state.appliedLayout,
-      previewLayout,
-      focusView: state.focusView,
-      layoutStyle: state.layoutStyle,
-      customModules: state.customModules,
-    });
+    persistPrefs(get());
   },
   applyLayout: (layout) => {
     set({ appliedLayout: layout, previewLayout: layout });
-    const state = get();
-    savePrefs({
-      appliedLayout: state.appliedLayout,
-      previewLayout: state.previewLayout,
-      focusView: state.focusView,
-      layoutStyle: state.layoutStyle,
-      customModules: state.customModules,
-    });
+    persistPrefs(get());
   },
   applyPreviewLayout: () => {
     set((state) => ({ appliedLayout: state.previewLayout }));
-    const state = get();
-    savePrefs({
-      appliedLayout: state.appliedLayout,
-      previewLayout: state.previewLayout,
-      focusView: state.focusView,
-      layoutStyle: state.layoutStyle,
-      customModules: state.customModules,
-    });
+    persistPrefs(get());
   },
   setFocusView: (focusView) => {
     set({ focusView });
-    const state = get();
-    savePrefs({
-      appliedLayout: state.appliedLayout,
-      previewLayout: state.previewLayout,
-      focusView,
-      layoutStyle: state.layoutStyle,
-      customModules: state.customModules,
-    });
+    persistPrefs(get());
   },
   toggleCustomModule: (key) => {
     set((state) => ({
@@ -180,36 +166,15 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         [key]: !state.customModules[key],
       },
     }));
-    const state = get();
-    savePrefs({
-      appliedLayout: state.appliedLayout,
-      previewLayout: state.previewLayout,
-      focusView: state.focusView,
-      layoutStyle: state.layoutStyle,
-      customModules: state.customModules,
-    });
+    persistPrefs(get());
   },
   setCustomModules: (customModules) => {
     set({ customModules });
-    const state = get();
-    savePrefs({
-      appliedLayout: state.appliedLayout,
-      previewLayout: state.previewLayout,
-      focusView: state.focusView,
-      layoutStyle: state.layoutStyle,
-      customModules,
-    });
+    persistPrefs(get());
   },
   setLayoutStyle: (layoutStyle) => {
     set({ layoutStyle });
-    const state = get();
-    savePrefs({
-      appliedLayout: state.appliedLayout,
-      previewLayout: state.previewLayout,
-      focusView: state.focusView,
-      layoutStyle,
-      customModules: state.customModules,
-    });
+    persistPrefs(get());
   },
   applyQuickMode: (mode) => {
     const opsModules: CustomLayoutModules = {
@@ -248,13 +213,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       layoutStyle: next.layoutStyle,
       customModules: next.customModules,
     });
-    savePrefs({
-      appliedLayout: next.appliedLayout,
-      previewLayout: next.previewLayout,
-      focusView: next.focusView,
-      layoutStyle: next.layoutStyle,
-      customModules: next.customModules,
-    });
+    persistPrefs(get());
   },
   createTempScene: (name, ttlMinutes) => {
     const state = get();
@@ -295,7 +254,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
       layoutStyle: prefsToApply.layoutStyle,
       customModules: prefsToApply.customModules,
     });
-    savePrefs(prefsToApply);
+    persistPrefs(get());
   },
   deleteTempScene: (sceneId) => {
     const state = get();

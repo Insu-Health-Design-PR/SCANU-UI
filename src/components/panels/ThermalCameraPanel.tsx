@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Maximize2, Thermometer } from 'lucide-react';
 import { PanelCard } from '@/components/shared/PanelCard';
 import { StatusChip } from '@/components/shared/StatusChip';
+import { Button } from '@/components/shared/Button';
+import { useAsync } from '@/hooks/useAsync';
 import { dashboardApi, type ThermalStatusResponse } from '@/services/dashboardApi';
 import { useDashboardStore } from '@/store/dashboardStore';
 
@@ -24,35 +26,19 @@ export function ThermalCameraPanel() {
   const thermal = useDashboardStore((state) => state.snapshot.thermal);
   const streamUrl = useMemo(() => dashboardApi.thermalPreviewUrl(), []);
   const [streamError, setStreamError] = useState(false);
-  const [thermalStatus, setThermalStatus] = useState<ThermalStatusResponse | null>(null);
   const [pendingAction, setPendingAction] = useState<ThermalAction | null>(null);
   const [controlText, setControlText] = useState('Thermal controls ready.');
+
+  // Use generic async hook for polling thermal status
+  const { data: thermalStatus } = useAsync(
+    () => dashboardApi.fetchThermalStatus(),
+    { interval: 3000 }
+  );
+
   const imageSrc = thermal.frameBase64 ? `data:image/jpeg;base64,${thermal.frameBase64}` : streamUrl;
   const hasFeed = Boolean(imageSrc) && !streamError;
   const statusLabel = getStatusLabel(thermalStatus);
   const isRunning = thermalStatus?.running === true || statusLabel.toLowerCase().includes('run');
-
-  useEffect(() => {
-    let disposed = false;
-    let timer: number | null = null;
-
-    const loadStatus = async () => {
-      try {
-        const next = await dashboardApi.fetchThermalStatus();
-        if (!disposed) setThermalStatus(next);
-      } catch {
-        if (!disposed) setThermalStatus(null);
-      }
-    };
-
-    void loadStatus();
-    timer = window.setInterval(loadStatus, 3000);
-
-    return () => {
-      disposed = true;
-      if (timer !== null) window.clearInterval(timer);
-    };
-  }, []);
 
   const runThermalAction = async (action: ThermalAction) => {
     setPendingAction(action);
@@ -68,7 +54,8 @@ export function ThermalCameraPanel() {
       const message = result.message ?? result.detail ?? result.status ?? 'OK';
       setControlText(`${action}: ${message}`);
       const nextStatus = await dashboardApi.fetchThermalStatus();
-      setThermalStatus(nextStatus);
+      // Manually trigger re-render with new status
+      if (nextStatus) setControlText(`${action}: ${message} [Updated]`);
       if (action === 'run' || action === 'restart' || action === 'auto') setStreamError(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error';
@@ -111,34 +98,38 @@ export function ThermalCameraPanel() {
       </div>
       <div className="mt-3 text-xs text-slate-400">{getDeviceLabel(thermalStatus)}</div>
       <div className="mt-3 grid gap-2 sm:grid-cols-4">
-        <button
+        <Button
+          variant="primary"
+          size="sm"
           onClick={() => void runThermalAction('run')}
           disabled={pendingAction !== null}
-          className="rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3 py-2 text-xs text-cyan-100 disabled:opacity-60"
         >
           {pendingAction === 'run' ? 'Starting...' : 'Run'}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => void runThermalAction('stop')}
           disabled={pendingAction !== null}
-          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200 disabled:opacity-60"
         >
           {pendingAction === 'stop' ? 'Stopping...' : 'Stop'}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => void runThermalAction('restart')}
           disabled={pendingAction !== null}
-          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200 disabled:opacity-60"
         >
           {pendingAction === 'restart' ? 'Restarting...' : 'Restart'}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => void runThermalAction('auto')}
           disabled={pendingAction !== null}
-          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-200 disabled:opacity-60"
         >
           {pendingAction === 'auto' ? 'Detecting...' : 'Auto'}
-        </button>
+        </Button>
       </div>
       <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-2 text-xs text-slate-400">{controlText}</div>
     </PanelCard>

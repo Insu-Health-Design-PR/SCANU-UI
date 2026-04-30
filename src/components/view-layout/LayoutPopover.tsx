@@ -1,4 +1,5 @@
 import { layoutPresets } from '@/lib/constants';
+import { Button } from '@/components/shared/Button';
 import type { LayoutPreset } from '@/types/layout';
 
 interface LayoutPopoverProps {
@@ -31,14 +32,14 @@ export function LayoutPopover({ selected, onSelect, onOpenPreview }: LayoutPopov
 
       {selected === 'Custom Combination' ? (
         <div className="border-t border-white/10 p-3">
-          <button
+          <Button
             data-testid="open-layout-preview"
-            type="button"
+            variant="primary"
+            className="w-full"
             onClick={onOpenPreview}
-            className="w-full rounded-xl border border-cyan-400/25 bg-cyan-400/12 px-4 py-2.5 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/20"
           >
             Open Preview
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>

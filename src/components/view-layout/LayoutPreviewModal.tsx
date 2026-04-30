@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
+import { Button } from '@/components/shared/Button';
 import { CustomLayoutBuilder } from '@/components/view-layout/CustomLayoutBuilder';
 import type { CustomLayoutModules, FocusView, LayoutPreset, LayoutStyle } from '@/types/layout';
 
@@ -255,26 +256,29 @@ export function LayoutPreviewModal({
                 Layout Preview: {layout}
               </h3>
               <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-3">
-                <button
+                <Button
                   data-testid="apply-layout"
+                  variant="primary"
+                  size="md"
                   onClick={onApply}
-                  className="rounded-xl border border-cyan-400/25 bg-cyan-400/12 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/20 sm:px-4"
                 >
                   Apply Layout
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
                   onClick={onBack}
-                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/10 sm:px-4"
                 >
                   Back
-                </button>
-                <button
+                </Button>
+                <Button
                   data-testid="close-layout-preview"
+                  variant="secondary"
+                  size="md"
                   onClick={onClose}
-                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/10 sm:px-4"
                 >
                   Close
-                </button>
+                </Button>
                 <button
                   aria-label="Close layout preview"
                   onClick={onClose}

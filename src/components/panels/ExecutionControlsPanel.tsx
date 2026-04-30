@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Play } from 'lucide-react';
 import { PanelCard } from '@/components/shared/PanelCard';
 import { StatusChip } from '@/components/shared/StatusChip';
+import { Button } from '@/components/shared/Button';
 import { dashboardApi } from '@/services/dashboardApi';
 import { useDashboardStore } from '@/store/dashboardStore';
 
@@ -36,34 +37,38 @@ export function ExecutionControlsPanel() {
   return (
     <PanelCard title="Execution Controls" icon={<Play className="h-4 w-4" />}>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <button
+        <Button
+          variant="primary"
+          size="lg"
           onClick={() => void runControl('start')}
           disabled={pendingAction !== null}
-          className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-200 disabled:opacity-60"
         >
           {pendingAction === 'start' ? 'Starting...' : 'Start'}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="secondary"
+          size="lg"
           onClick={() => void runControl('stop')}
           disabled={pendingAction !== null}
-          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 disabled:opacity-60"
         >
           {pendingAction === 'stop' ? 'Stopping...' : 'Stop'}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="secondary"
+          size="lg"
           onClick={() => void runControl('reconfigure')}
           disabled={pendingAction !== null}
-          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 disabled:opacity-60"
         >
           {pendingAction === 'reconfigure' ? 'Reconfiguring...' : 'Reconfigure'}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="secondary"
+          size="lg"
           onClick={() => void runControl('reset')}
           disabled={pendingAction !== null}
-          className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 disabled:opacity-60"
         >
           {pendingAction === 'reset' ? 'Resetting...' : 'Reset'}
-        </button>
+        </Button>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <StatusChip label={mode === 'live' ? 'Live' : 'Simulated'} tone={mode === 'live' ? 'cyan' : 'slate'} />

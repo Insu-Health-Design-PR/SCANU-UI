@@ -166,6 +166,18 @@ function toAlertLevel(level: string | undefined): AlertLevel {
   return 'info';
 }
 
+/**
+ * Get numeric field from object with fallback keys
+ * @example getNumericField(obj, 'x', 'x_m', 'pos_x')
+ */
+function getNumericField(obj: Record<string, unknown>, ...keys: string[]): number | null {
+  for (const key of keys) {
+    const val = obj[key];
+    if (typeof val === 'number') return val;
+  }
+  return null;
+}
+
 function toRenderPoints(raw: unknown[]): RenderPoint[] {
   if (!Array.isArray(raw) || raw.length === 0) return [];
 
@@ -173,30 +185,9 @@ function toRenderPoints(raw: unknown[]): RenderPoint[] {
     .map((item, idx) => {
       if (!item || typeof item !== 'object') return null;
       const obj = item as Record<string, unknown>;
-      const x =
-        typeof obj.x === 'number'
-          ? obj.x
-          : typeof obj.x_m === 'number'
-            ? obj.x_m
-            : typeof obj.pos_x === 'number'
-              ? obj.pos_x
-              : null;
-      const y =
-        typeof obj.y === 'number'
-          ? obj.y
-          : typeof obj.y_m === 'number'
-            ? obj.y_m
-            : typeof obj.pos_y === 'number'
-              ? obj.pos_y
-              : null;
-      const z =
-        typeof obj.z === 'number'
-          ? obj.z
-          : typeof obj.z_m === 'number'
-            ? obj.z_m
-            : typeof obj.pos_z === 'number'
-              ? obj.pos_z
-              : 0;
+      const x = getNumericField(obj, 'x', 'x_m', 'pos_x');
+      const y = getNumericField(obj, 'y', 'y_m', 'pos_y');
+      const z = getNumericField(obj, 'z', 'z_m', 'pos_z') ?? 0;
       if (x === null || y === null) return null;
       return { idx, x, y, z };
     })
@@ -462,16 +453,29 @@ export const dashboardApi = {
     return fetchJson<ThermalStatusResponse>(`${API_BASE}/api/thermal/status`);
   },
 
+  /**
+   * Generic method to control thermal or ai_camera component
+   * @param component 'thermal' | 'ai_camera'
+   * @param action 'run' | 'stop' | 'restart'
+   */
+  async controlComponent<T = ThermalControlResult>(
+    component: 'thermal' | 'ai_camera',
+    action: 'run' | 'stop' | 'restart',
+  ): Promise<T> {
+    return postEmpty<T>(`${API_BASE}/api/${component}/${action}`);
+  },
+
+  // Convenience shortcuts
   async runThermal(): Promise<ThermalControlResult> {
-    return postEmpty<ThermalControlResult>(`${API_BASE}/api/thermal/run`);
+    return this.controlComponent('thermal', 'run');
   },
 
   async stopThermal(): Promise<ThermalControlResult> {
-    return postEmpty<ThermalControlResult>(`${API_BASE}/api/thermal/stop`);
+    return this.controlComponent('thermal', 'stop');
   },
 
   async restartThermal(): Promise<ThermalControlResult> {
-    return postEmpty<ThermalControlResult>(`${API_BASE}/api/thermal/restart`);
+    return this.controlComponent('thermal', 'restart');
   },
 
   async fetchUiPrefs(): Promise<Partial<UiPreferences> | null> {
@@ -599,15 +603,15 @@ export const dashboardApi = {
   },
 
   async runAiCamera(): Promise<Record<string, unknown>> {
-    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/ai_camera/run`);
+    return this.controlComponent('ai_camera', 'run');
   },
 
   async stopAiCamera(): Promise<Record<string, unknown>> {
-    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/ai_camera/stop`);
+    return this.controlComponent('ai_camera', 'stop');
   },
 
   async restartAiCamera(): Promise<Record<string, unknown>> {
-    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/ai_camera/restart`);
+    return this.controlComponent('ai_camera', 'restart');
   },
 
   async fetchModuleMap(): Promise<Record<string, unknown>> {
