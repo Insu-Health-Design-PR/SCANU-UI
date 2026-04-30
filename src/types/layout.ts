@@ -28,3 +28,11 @@ export interface UiPreferences {
   layoutStyle: LayoutStyle;
   customModules: CustomLayoutModules;
 }
+
+export interface TempScene {
+  id: string;
+  name: string;
+  createdAt: number;
+  expiresAt: number;
+  prefs: UiPreferences;
+}

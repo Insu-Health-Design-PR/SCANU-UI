@@ -522,6 +522,22 @@ export const dashboardApi = {
     return fetchJson<Record<string, unknown>>(`${API_BASE}/api/system/metrics`);
   },
 
+  async fetchConfig(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/config`);
+  },
+
+  async updateConfig(config: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return putJson<Record<string, unknown>>(`${API_BASE}/api/config`, config);
+  },
+
+  async resetConfig(): Promise<Record<string, unknown>> {
+    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/config/reset`);
+  },
+
+  async resetModelConfig(): Promise<Record<string, unknown>> {
+    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/config/reset/model`);
+  },
+
   async fetchDashboardMetrics(): Promise<Record<string, unknown>> {
     return fetchJson<Record<string, unknown>>(`${API_BASE}/api/dashboard/metrics`);
   },
@@ -546,8 +562,28 @@ export const dashboardApi = {
     return fetchJson<Record<string, unknown>>(`${API_BASE}/api/model/profiles`);
   },
 
+  async updateModelProfiles(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return putJson<Record<string, unknown>>(`${API_BASE}/api/model/profiles`, payload);
+  },
+
   async applyModelProfile(profileName: string): Promise<Record<string, unknown>> {
     return postJson<Record<string, unknown>>(`${API_BASE}/api/model/profiles/apply`, { profile_name: profileName });
+  },
+
+  async snapshotModelProfile(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/model/profiles/snapshot`, payload);
+  },
+
+  async syncModelProfilesFromConfig(): Promise<Record<string, unknown>> {
+    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/model/profiles/sync_from_config`);
+  },
+
+  async fetchAiCameraProfiles(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/profiles`);
+  },
+
+  async applyAiCameraProfileByName(profileName: string): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/profiles/apply_by_name`, { profile_name: profileName });
   },
 
   async fetchAiCameraStatus(): Promise<Record<string, unknown>> {
@@ -560,6 +596,70 @@ export const dashboardApi = {
 
   async updateAiCameraConfig(config: Record<string, unknown>): Promise<Record<string, unknown>> {
     return putJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/config`, config);
+  },
+
+  async runAiCamera(): Promise<Record<string, unknown>> {
+    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/ai_camera/run`);
+  },
+
+  async stopAiCamera(): Promise<Record<string, unknown>> {
+    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/ai_camera/stop`);
+  },
+
+  async restartAiCamera(): Promise<Record<string, unknown>> {
+    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/ai_camera/restart`);
+  },
+
+  async fetchModuleMap(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/layer8/module_map`);
+  },
+
+  async fetchSensorCommand(sensor: string): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/command/${encodeURIComponent(sensor)}`);
+  },
+
+  async fetchSensorStatus(sensor: string): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/status/${encodeURIComponent(sensor)}`);
+  },
+
+  statusStreamUrl(): string {
+    return mediaUrl('/api/status/stream');
+  },
+
+  sensorVideoUrl(sensor: string): string {
+    return mediaUrl(`/api/preview/video/${encodeURIComponent(sensor)}`);
+  },
+
+  sensorLiveUrl(sensor: string): string {
+    return mediaUrl(`/api/preview/live/${encodeURIComponent(sensor)}`);
+  },
+
+  thermalDirectLiveUrl(): string {
+    return mediaUrl('/api/preview/live_direct/thermal');
+  },
+
+  webcamDirectLiveUrl(): string {
+    return mediaUrl('/api/preview/live_direct/webcam');
+  },
+
+  thermalEmbedUrl(): string {
+    return mediaUrl('/embed/thermal');
+  },
+
+  webcamEmbedUrl(): string {
+    return mediaUrl('/embed/webcam');
+  },
+
+  async createWebrtcWebcamOffer(offer: string): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/webrtc/webcam/offer`, { offer });
+  },
+
+  async createWebrtcAiCameraOffer(offer: string): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/webrtc/ai_camera/offer`, { offer });
+  },
+
+  async createAiCameraWebrtcOffer(offer: string): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/webrtc/offer`, { offer });
   },
 
   aiCameraPreviewUrl(): string {
