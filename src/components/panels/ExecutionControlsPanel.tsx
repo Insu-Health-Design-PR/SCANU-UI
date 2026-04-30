@@ -15,13 +15,16 @@ export function ExecutionControlsPanel() {
     try {
       const result =
         action === 'start'
-          ? await dashboardApi.start()
+          ? await dashboardApi.runAll()
           : action === 'stop'
-            ? await dashboardApi.stop()
+            ? await dashboardApi.stopAll()
             : action === 'reconfigure'
-              ? await dashboardApi.reconfigure()
+              ? await dashboardApi.restartAll()
               : await dashboardApi.reset();
-      setResultText(`${result.action ?? action}: ${result.success ? 'OK' : 'FAILED'}${result.reason ? ` (${result.reason})` : ''}`);
+      const success = typeof result.success === 'boolean' ? result.success : true;
+      const reason = typeof result.reason === 'string' ? result.reason : '';
+      const actionName = typeof result.action === 'string' ? result.action : action;
+      setResultText(`${actionName}: ${success ? 'OK' : 'FAILED'}${reason ? ` (${reason})` : ''}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error';
       setResultText(`${action}: FAILED (${message})`);

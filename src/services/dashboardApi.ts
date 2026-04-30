@@ -15,32 +15,36 @@ interface BackendStatusResponse {
   active_radars?: string[];
 }
 
-interface BackendHealthResponse {
-  healthy: boolean;
-  has_fault: boolean;
-  sensor_online_count: number;
+interface SensorStatusResponse {
+  running?: boolean;
+  status?: string;
+  state?: string;
 }
 
-interface BackendAlert {
-  event_id?: string;
-  level?: string;
-  timestamp_utc?: string;
-  message?: string;
+interface DashboardMetricsResponse {
+  fused_score?: number;
+  confidence?: number;
+  healthy?: boolean;
+  connected?: boolean;
+  active_sensors?: number;
+  sensor_count?: number;
+  tracked_points?: number;
+  presence_detected?: boolean;
+  presence_confidence?: number;
 }
 
-interface BackendVisualLatest {
-  timestamp_ms?: number | null;
-  source_mode?: string;
-  rgb_jpeg_b64?: string | null;
-  thermal_jpeg_b64?: string | null;
+interface MmwavePreviewResponse {
   point_cloud?: unknown[];
   presence?: boolean | { detected?: boolean; confidence?: number } | null;
-  meta?: Record<string, unknown>;
+  timestamp_ms?: number;
 }
 
-interface BackendWsEvent {
-  event_type: string;
-  payload: unknown;
+interface CameraWsPayload {
+  timestamp_ms?: number;
+  rgb_jpeg_b64?: string;
+  thermal_jpeg_b64?: string;
+  frame_b64?: string;
+  image_b64?: string;
 }
 
 interface ControlResult {
@@ -86,15 +90,7 @@ function resolveApiBase(): string {
   return envApiBase ?? (browserIsLocal ? localDefault : sameHostDefault);
 }
 
-function resolveWsEventsUrl(apiBase: string): string {
-  const envWs = import.meta.env.VITE_LAYER8_WS_URL as string | undefined;
-  if (typeof window === 'undefined') return envWs ?? `${apiBase.replace(/^http/i, 'ws')}/ws/events`;
-
-  return envWs ?? `${apiBase.replace(/^http/i, 'ws')}/ws/events`;
-}
-
 const API_BASE = resolveApiBase();
-const WS_EVENTS_URL = resolveWsEventsUrl(API_BASE);
 const PREFS_ENDPOINT = `${API_BASE}/api/ui/preferences`;
 const API_KEY = (import.meta.env.VITE_LAYER8_API_KEY as string | undefined)?.trim() ?? '';
 
@@ -102,15 +98,15 @@ function authHeaders(extra?: HeadersInit): HeadersInit {
   return API_KEY ? { ...extra, 'X-Layer8-Api-Key': API_KEY } : (extra ?? {});
 }
 
-function eventsSocketUrl(): string {
-  if (!API_KEY) return WS_EVENTS_URL;
-  const url = new URL(WS_EVENTS_URL);
-  url.searchParams.set('token', API_KEY);
+function mediaUrl(path: string): string {
+  const url = new URL(path, API_BASE);
+  if (API_KEY) url.searchParams.set('token', API_KEY);
   return url.toString();
 }
 
-function mediaUrl(path: string): string {
-  const url = new URL(path, API_BASE);
+function wsUrl(path: string): string {
+  const baseWs = API_BASE.replace(/^http/i, 'ws');
+  const url = new URL(path, baseWs);
   if (API_KEY) url.searchParams.set('token', API_KEY);
   return url.toString();
 }
@@ -233,64 +229,63 @@ function toRenderPoints(raw: unknown[]): RenderPoint[] {
 
 function toDashboardSnapshot(
   status: BackendStatusResponse,
-  health: BackendHealthResponse,
-  alerts: BackendAlert[],
-  visual: BackendVisualLatest,
+  aiCameraStatus: SensorStatusResponse,
+  thermalStatus: SensorStatusResponse,
+  metrics: DashboardMetricsResponse,
+  mmwave: MmwavePreviewResponse,
 ): DashboardSnapshot {
-  const sensorCount = Math.max(health.sensor_online_count || 0, status.active_radars?.length || 0, 1);
-  const onlineCount = health.sensor_online_count || 0;
+  const sensorCount = Math.max(metrics.sensor_count ?? 0, status.active_radars?.length ?? 0, 1);
+  const onlineCount = Math.max(metrics.active_sensors ?? 0, status.active_radars?.length ?? 0, 0);
   const nowMs = Date.now();
-  const timestampMs = visual.timestamp_ms ?? nowMs;
-  const pointCloudRaw = Array.isArray(visual.point_cloud) ? visual.point_cloud : [];
+  const timestampMs = mmwave.timestamp_ms ?? nowMs;
+  const pointCloudRaw = Array.isArray(mmwave.point_cloud) ? mmwave.point_cloud : [];
   const detected =
-    typeof visual.presence === 'boolean'
-      ? visual.presence
-      : typeof visual.presence === 'object' && visual.presence !== null
-        ? Boolean(visual.presence.detected)
+    typeof mmwave.presence === 'boolean'
+      ? mmwave.presence
+      : typeof mmwave.presence === 'object' && mmwave.presence !== null
+        ? Boolean(mmwave.presence.detected)
         : false;
   const presenceConfidence =
-    typeof visual.presence === 'object' && visual.presence !== null && typeof visual.presence.confidence === 'number'
-      ? visual.presence.confidence
-      : detected
-        ? 0.8
-        : 0.0;
+    typeof mmwave.presence === 'object' && mmwave.presence !== null && typeof mmwave.presence.confidence === 'number'
+      ? mmwave.presence.confidence
+      : metrics.presence_confidence ?? (detected ? 0.8 : 0.0);
 
-  const rgbHasFrame = Boolean(visual.rgb_jpeg_b64);
-  const thermalHasFrame = Boolean(visual.thermal_jpeg_b64);
+  const rgbRunning = aiCameraStatus.running === true || `${aiCameraStatus.status ?? aiCameraStatus.state ?? ''}`.toLowerCase().includes('run');
+  const thermalRunning = thermalStatus.running === true || `${thermalStatus.status ?? thermalStatus.state ?? ''}`.toLowerCase().includes('run');
 
   return {
-    mode: visual.source_mode === 'simulate' ? 'simulated' : 'live',
+    mode: 'live',
     state: (status.state ?? 'UNKNOWN') as DashboardSnapshot['state'],
     health: {
-      connected: onlineCount > 0,
+      connected: metrics.connected ?? onlineCount > 0,
       configured: onlineCount > 0,
       streaming: onlineCount > 0,
-      healthy: health.healthy && !health.has_fault,
+      healthy: metrics.healthy ?? !Boolean(status.health?.has_fault),
       activeSensors: onlineCount,
       sensorCount,
-      fusedScore: status.fused_score ?? 0,
-      confidence: status.confidence ?? 0,
+      fusedScore: metrics.fused_score ?? status.fused_score ?? 0,
+      confidence: metrics.confidence ?? status.confidence ?? 0,
     },
     rgb: {
       label: 'Visual Detection',
       resolution: '1080p',
       fps: 30,
-      status: rgbHasFrame ? 'streaming' : 'paused',
+      status: rgbRunning ? 'streaming' : 'paused',
       latencyMs: Math.max(0, nowMs - timestampMs),
-      frameBase64: visual.rgb_jpeg_b64 ?? null,
+      frameBase64: null,
       source: 'live',
-      stale: !rgbHasFrame,
+      stale: !rgbRunning,
       lastFrameAtMs: timestampMs,
     },
     thermal: {
       label: 'Thermal Cam',
       resolution: '640x480',
       fps: 30,
-      status: thermalHasFrame ? 'streaming' : 'paused',
+      status: thermalRunning ? 'streaming' : 'paused',
       latencyMs: Math.max(0, nowMs - timestampMs),
-      frameBase64: visual.thermal_jpeg_b64 ?? null,
+      frameBase64: null,
       source: 'live',
-      stale: !thermalHasFrame,
+      stale: !thermalRunning,
       lastFrameAtMs: timestampMs,
     },
     pointCloud: {
@@ -309,137 +304,8 @@ function toDashboardSnapshot(
       lastTriggerIso: detected ? new Date(timestampMs).toISOString() : '',
       timeline: Array.from({ length: 30 }, () => Math.round(presenceConfidence * 100)),
     },
-    alerts: alerts.map((alert, index) => ({
-      id: alert.event_id ?? `alert-${index}`,
-      level: toAlertLevel(alert.level),
-      timestamp: alert.timestamp_utc ? new Date(alert.timestamp_utc).toLocaleTimeString() : '--:--:--',
-      message: alert.message ?? 'No message',
-    })),
+    alerts: [],
   };
-}
-
-function parseWsEvent(input: string): BackendWsEvent | null {
-  try {
-    const parsed = JSON.parse(input) as BackendWsEvent;
-    if (!parsed || typeof parsed.event_type !== 'string') return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-function updateFromWs(current: DashboardSnapshot, event: BackendWsEvent): DashboardSnapshot {
-  const next = { ...current };
-  if (event.event_type === 'status_update' && event.payload && typeof event.payload === 'object') {
-    const payload = event.payload as BackendStatusResponse;
-    next.state = (payload.state ?? current.state) as DashboardSnapshot['state'];
-    next.health = {
-      ...next.health,
-      fusedScore: payload.fused_score ?? next.health.fusedScore,
-      confidence: payload.confidence ?? next.health.confidence,
-      activeSensors: payload.health?.sensor_online_count ?? next.health.activeSensors,
-      connected: (payload.health?.sensor_online_count ?? 0) > 0,
-      configured: (payload.health?.sensor_online_count ?? 0) > 0,
-      streaming: (payload.health?.sensor_online_count ?? 0) > 0,
-      healthy: !Boolean(payload.health?.has_fault),
-    };
-    return next;
-  }
-
-  if (event.event_type === 'alert_event' && event.payload && typeof event.payload === 'object') {
-    const payload = event.payload as BackendAlert;
-    const record = {
-      id: payload.event_id ?? `alert-${Date.now()}`,
-      level: toAlertLevel(payload.level),
-      timestamp: payload.timestamp_utc ? new Date(payload.timestamp_utc).toLocaleTimeString() : '--:--:--',
-      message: payload.message ?? 'No message',
-    };
-    next.alerts = [record, ...next.alerts].slice(0, 100);
-    return next;
-  }
-
-  if (event.event_type === 'visual_update' && event.payload && typeof event.payload === 'object') {
-    const payload = event.payload as BackendVisualLatest;
-    const pointCloudRaw = Array.isArray(payload.point_cloud) ? payload.point_cloud : [];
-    const detected =
-      typeof payload.presence === 'boolean'
-        ? payload.presence
-        : typeof payload.presence === 'object' && payload.presence !== null
-          ? Boolean(payload.presence.detected)
-          : current.presence.detected;
-    const confidence =
-      typeof payload.presence === 'object' && payload.presence !== null && typeof payload.presence.confidence === 'number'
-        ? payload.presence.confidence
-        : current.presence.confidence;
-    const nowMs = Date.now();
-    const eventTs = payload.timestamp_ms ?? nowMs;
-
-    next.rgb = {
-      ...next.rgb,
-      frameBase64: payload.rgb_jpeg_b64 ?? next.rgb.frameBase64,
-      status: payload.rgb_jpeg_b64 ? 'streaming' : next.rgb.status,
-      source: 'live',
-      stale: !payload.rgb_jpeg_b64,
-      lastFrameAtMs: eventTs,
-      latencyMs: Math.max(0, nowMs - eventTs),
-    };
-    next.thermal = {
-      ...next.thermal,
-      frameBase64: payload.thermal_jpeg_b64 ?? next.thermal.frameBase64,
-      status: payload.thermal_jpeg_b64 ? 'streaming' : next.thermal.status,
-      source: 'live',
-      stale: !payload.thermal_jpeg_b64,
-      lastFrameAtMs: eventTs,
-      latencyMs: Math.max(0, nowMs - eventTs),
-    };
-    next.pointCloud = {
-      ...next.pointCloud,
-      trackedPoints: pointCloudRaw.length,
-      source: 'live',
-      stale: pointCloudRaw.length === 0,
-      lastFrameAtMs: eventTs,
-      lastUpdateMs: Math.max(0, nowMs - eventTs),
-      renderPoints: toRenderPoints(pointCloudRaw),
-    };
-    next.presence = {
-      ...next.presence,
-      detected,
-      confidence,
-      timeline: [...next.presence.timeline.slice(-29), Math.round(confidence * 100)],
-      lastTriggerIso: detected ? new Date().toISOString() : next.presence.lastTriggerIso,
-    };
-    return next;
-  }
-
-  if (event.event_type === 'sensor_fault') {
-    next.health = { ...next.health, healthy: false };
-    next.alerts = [
-      {
-        id: `fault-${Date.now()}`,
-        level: 'fault' as const,
-        timestamp: new Date().toLocaleTimeString(),
-        message: 'Sensor fault event detected.',
-      },
-      ...next.alerts,
-    ].slice(0, 100);
-    return next;
-  }
-
-  if (event.event_type === 'control_result' && event.payload && typeof event.payload === 'object') {
-    const payload = event.payload as ControlResult;
-    const level: AlertLevel = payload.success ? 'info' : 'warning';
-    next.alerts = [
-      {
-        id: `ctrl-${Date.now()}`,
-        level,
-        timestamp: new Date().toLocaleTimeString(),
-        message: `${payload.action ?? 'control'} ${payload.success ? 'ok' : 'failed'}${payload.reason ? ` (${payload.reason})` : ''}`,
-      },
-      ...next.alerts,
-    ].slice(0, 100);
-    return next;
-  }
-  return next;
 }
 
 function applyFreshness(snapshot: DashboardSnapshot, staleThresholdMs = 7000): DashboardSnapshot {
@@ -488,26 +354,93 @@ function toUnavailableSnapshot(reason: string): DashboardSnapshot {
   };
 }
 
+function parseCameraWsPayload(input: string): CameraWsPayload | null {
+  try {
+    const parsed = JSON.parse(input) as CameraWsPayload;
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function frameFromPayload(payload: CameraWsPayload, kind: 'webcam' | 'thermal'): string | null {
+  if (kind === 'webcam') {
+    return payload.rgb_jpeg_b64 ?? payload.frame_b64 ?? payload.image_b64 ?? null;
+  }
+  return payload.thermal_jpeg_b64 ?? payload.frame_b64 ?? payload.image_b64 ?? null;
+}
+
+function applyCameraWsFrame(snapshot: DashboardSnapshot, kind: 'webcam' | 'thermal', payload: CameraWsPayload): DashboardSnapshot {
+  const frame = frameFromPayload(payload, kind);
+  if (!frame) return snapshot;
+  const now = Date.now();
+  const ts = typeof payload.timestamp_ms === 'number' ? payload.timestamp_ms : now;
+
+  if (kind === 'webcam') {
+    return {
+      ...snapshot,
+      rgb: {
+        ...snapshot.rgb,
+        frameBase64: frame,
+        status: 'streaming',
+        stale: false,
+        lastFrameAtMs: ts,
+        latencyMs: Math.max(0, now - ts),
+      },
+    };
+  }
+
+  return {
+    ...snapshot,
+    thermal: {
+      ...snapshot.thermal,
+      frameBase64: frame,
+      status: 'streaming',
+      stale: false,
+      lastFrameAtMs: ts,
+      latencyMs: Math.max(0, now - ts),
+    },
+  };
+}
+
 export const dashboardApi = {
   apiBase: API_BASE,
 
   async fetchSnapshot(): Promise<DashboardSnapshot> {
     try {
-      const [status, health, alertsResponse, visual] = await Promise.all([
+      const [status, aiCameraStatus, thermalStatus, metrics, mmwave] = await Promise.all([
         fetchJson<BackendStatusResponse>(`${API_BASE}/api/status`),
-        fetchJson<BackendHealthResponse>(`${API_BASE}/api/health`),
-        fetchJson<{ alerts: BackendAlert[] }>(`${API_BASE}/api/alerts/recent?limit=50`),
-        fetchJson<BackendVisualLatest>(`${API_BASE}/api/visual/latest`),
+        fetchJson<SensorStatusResponse>(`${API_BASE}/api/ai_camera/status`),
+        fetchJson<SensorStatusResponse>(`${API_BASE}/api/thermal/status`),
+        fetchJson<DashboardMetricsResponse>(`${API_BASE}/api/dashboard/metrics`),
+        fetchJson<MmwavePreviewResponse>(`${API_BASE}/api/preview/output/mmwave`),
       ]);
-      return applyFreshness(toDashboardSnapshot(status, health, alertsResponse.alerts ?? [], visual));
+      return applyFreshness(toDashboardSnapshot(status, aiCameraStatus, thermalStatus, metrics, mmwave));
     } catch {
       return toUnavailableSnapshot('backend unreachable');
     }
   },
 
-  createEventsSocket(): WebSocket {
-    return new WebSocket(eventsSocketUrl());
+  webcamSocketUrl(): string {
+    return wsUrl('/ws/webcam');
   },
+
+  thermalSocketUrl(): string {
+    return wsUrl('/ws/thermal');
+  },
+
+  parseCameraWsPayload,
+
+  applyWebcamWsFrame(snapshot: DashboardSnapshot, payload: CameraWsPayload): DashboardSnapshot {
+    return applyCameraWsFrame(snapshot, 'webcam', payload);
+  },
+
+  applyThermalWsFrame(snapshot: DashboardSnapshot, payload: CameraWsPayload): DashboardSnapshot {
+    return applyCameraWsFrame(snapshot, 'thermal', payload);
+  },
+
+  applyFreshness,
 
   thermalPreviewUrl(): string {
     return mediaUrl('/api/thermal/preview/live');
@@ -558,33 +491,78 @@ export const dashboardApi = {
   },
 
   async start(radarId = 'radar_main'): Promise<ControlResult> {
-    return postJson<ControlResult>(`${API_BASE}/api/control/reconfig`, {
-      radar_id: radarId,
-      config_text: 'sensorStart',
-    });
+    return postEmpty<ControlResult>(`${API_BASE}/api/run/${encodeURIComponent(radarId)}`);
   },
 
   async stop(radarId = 'radar_main'): Promise<ControlResult> {
-    return postJson<ControlResult>(`${API_BASE}/api/control/reconfig`, {
-      radar_id: radarId,
-      config_text: 'sensorStop',
-    });
+    return postEmpty<ControlResult>(`${API_BASE}/api/stop/${encodeURIComponent(radarId)}`);
   },
 
   async reconfigure(radarId = 'radar_main'): Promise<ControlResult> {
-    return postJson<ControlResult>(`${API_BASE}/api/control/reconfig`, {
-      radar_id: radarId,
-      config_text: 'sensorStop\nsensorStart',
-    });
+    return postEmpty<ControlResult>(`${API_BASE}/api/restart/${encodeURIComponent(radarId)}`);
   },
 
   async reset(radarId = 'radar_main'): Promise<ControlResult> {
-    return postJson<ControlResult>(`${API_BASE}/api/control/reset-soft`, {
-      radar_id: radarId,
-    });
+    return postEmpty<ControlResult>(`${API_BASE}/api/config/reset/${encodeURIComponent(radarId)}`);
   },
 
-  parseWsEvent,
-  updateFromWs,
-  applyFreshness,
+  async runAll(): Promise<Record<string, unknown>> {
+    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/run_all`);
+  },
+
+  async stopAll(): Promise<Record<string, unknown>> {
+    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/stop_all`);
+  },
+
+  async restartAll(): Promise<Record<string, unknown>> {
+    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/restart_all`);
+  },
+
+  async fetchSystemMetrics(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/system/metrics`);
+  },
+
+  async fetchDashboardMetrics(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/dashboard/metrics`);
+  },
+
+  async fetchV4l2Devices(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/devices/v4l2`);
+  },
+
+  async fetchV4l2Formats(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/devices/v4l2/formats`);
+  },
+
+  async fetchSerialDevices(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/devices/serial`);
+  },
+
+  async fetchModelOptions(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/model/options`);
+  },
+
+  async fetchModelProfiles(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/model/profiles`);
+  },
+
+  async applyModelProfile(profileName: string): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/model/profiles/apply`, { profile_name: profileName });
+  },
+
+  async fetchAiCameraStatus(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/status`);
+  },
+
+  async fetchAiCameraConfig(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/config`);
+  },
+
+  async updateAiCameraConfig(config: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return putJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/config`, config);
+  },
+
+  aiCameraPreviewUrl(): string {
+    return mediaUrl('/api/ai_camera/preview/live');
+  },
 };

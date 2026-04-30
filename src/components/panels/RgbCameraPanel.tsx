@@ -1,11 +1,12 @@
 import { Camera, Maximize2 } from 'lucide-react';
 import { PanelCard } from '@/components/shared/PanelCard';
 import { StatusChip } from '@/components/shared/StatusChip';
+import { dashboardApi } from '@/services/dashboardApi';
 import { useDashboardStore } from '@/store/dashboardStore';
 
 export function RgbCameraPanel() {
   const rgb = useDashboardStore((state) => state.snapshot.rgb);
-  const imageSrc = rgb.frameBase64 ? `data:image/jpeg;base64,${rgb.frameBase64}` : null;
+  const imageSrc = dashboardApi.aiCameraPreviewUrl();
 
   return (
     <PanelCard title="Visual Detection" icon={<Camera className="h-4 w-4" />} action={<Maximize2 className="h-4 w-4 text-slate-500" />}>
