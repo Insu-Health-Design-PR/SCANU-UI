@@ -42,9 +42,9 @@ function CustomPreview({
   focusView: FocusView;
 }) {
   const orderedModules = [
-    modules.rgb ? { id: 'rgb', label: 'RGB Camera' } : null,
-    modules.thermal ? { id: 'thermal', label: 'Thermal Camera' } : null,
-    modules.pointCloud ? { id: 'pointCloud', label: 'Point Cloud / Spatial View' } : null,
+    modules.rgb ? { id: 'rgb', label: 'Visual Detection' } : null,
+    modules.thermal ? { id: 'thermal', label: 'Thermal Cam' } : null,
+    modules.pointCloud ? { id: 'pointCloud', label: 'Point Cloud' } : null,
     modules.presence ? { id: 'presence', label: 'Presence Sensor' } : null,
   ].filter(Boolean) as Array<{ id: FocusView; label: string }>;
 
@@ -114,41 +114,50 @@ function PresetPreview({
   layoutStyle: LayoutStyle;
   focusView: FocusView;
 }) {
-  if (layout === '1 Camera') {
+  if (layout === 'Visual Detection') {
     return (
       <div className="space-y-4">
-        <Frame title="Focused Camera" subtitle="large preview" className="aspect-[16/7]" />
+        <Frame title="Visual Detection" subtitle="large preview" className="aspect-[16/7]" />
         <OptionalInfo text="Presence Sensor | System Status | minimal controls" />
       </div>
     );
   }
 
-  if (layout === '2 Cameras') {
+  if (layout === 'Thermal Cam') {
+    return (
+      <div className="space-y-4">
+        <Frame title="Thermal Cam" subtitle="large preview" className="aspect-[16/7]" />
+        <OptionalInfo text="Presence Sensor | System Status | minimal controls" />
+      </div>
+    );
+  }
+
+  if (layout === 'Visual + Thermal') {
     return (
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
-          <Frame title="RGB Camera" subtitle="large preview" className="aspect-video" />
-          <Frame title="Thermal Camera" subtitle="large preview" className="aspect-video" />
+          <Frame title="Visual Detection" subtitle="large preview" className="aspect-video" />
+          <Frame title="Thermal Cam" subtitle="large preview" className="aspect-video" />
         </div>
         <OptionalInfo text="Presence Sensor | System Status | minimal controls" />
       </div>
     );
   }
 
-  if (layout === 'RGB + Point Cloud') {
+  if (layout === 'Visual Detection + Point Cloud') {
     return (
       <div className="space-y-4">
-        <Frame title="RGB Camera" subtitle="live stream" className="aspect-video" />
-        <Frame title="Point Cloud / Spatial View" subtitle="3D / radar visualization" className="aspect-[16/6]" />
+        <Frame title="Visual Detection" subtitle="live stream" className="aspect-video" />
+        <Frame title="Point Cloud" subtitle="3D / radar visualization" className="aspect-[16/6]" />
       </div>
     );
   }
 
-  if (layout === 'Thermal + Point Cloud') {
+  if (layout === 'Thermal Cam + Point Cloud') {
     return (
       <div className="space-y-4">
-        <Frame title="Thermal Camera" subtitle="live thermal stream" className="aspect-video" />
-        <Frame title="Point Cloud / Spatial View" subtitle="3D / radar visualization" className="aspect-[16/6]" />
+        <Frame title="Thermal Cam" subtitle="live thermal stream" className="aspect-video" />
+        <Frame title="Point Cloud" subtitle="3D / radar visualization" className="aspect-[16/6]" />
       </div>
     );
   }
@@ -156,7 +165,7 @@ function PresetPreview({
   if (layout === 'Point Cloud Only') {
     return (
       <div className="space-y-4">
-        <Frame title="Point Cloud / Spatial View" subtitle="full screen radar scene" className="aspect-[16/6]" />
+        <Frame title="Point Cloud" subtitle="full screen radar scene" className="aspect-[16/6]" />
         <OptionalInfo text="Presence Sensor | Status | small controls" />
       </div>
     );
@@ -169,10 +178,10 @@ function PresetPreview({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
-        <Frame title="RGB Camera" className="aspect-video" />
-        <Frame title="Thermal Camera" className="aspect-video" />
+        <Frame title="Visual Detection" className="aspect-video" />
+        <Frame title="Thermal Cam" className="aspect-video" />
       </div>
-      <Frame title="Point Cloud / Spatial View" className="aspect-[16/6]" />
+      <Frame title="Point Cloud" className="aspect-[16/6]" />
       <Frame title="Presence Sensor | Status | Execution" />
     </div>
   );

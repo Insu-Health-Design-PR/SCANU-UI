@@ -5,6 +5,7 @@ import { ChevronDown, LayoutGrid } from 'lucide-react';
 import { LayoutPopover } from '@/components/view-layout/LayoutPopover';
 import { LayoutPreviewModal } from '@/components/view-layout/LayoutPreviewModal';
 import { useDashboardStore } from '@/store/dashboardStore';
+import type { LayoutPreset } from '@/types/layout';
 
 export function ViewLayoutButton() {
   const [openPopover, setOpenPopover] = useState(false);
@@ -16,6 +17,7 @@ export function ViewLayoutButton() {
   const {
     previewLayout,
     setPreviewLayout,
+    applyLayout,
     applyPreviewLayout,
     customModules,
     toggleCustomModule,
@@ -24,6 +26,15 @@ export function ViewLayoutButton() {
     focusView,
     setFocusView,
   } = useDashboardStore();
+
+  const handleSelectLayout = (layout: LayoutPreset) => {
+    if (layout === 'Custom Combination') {
+      setPreviewLayout(layout);
+      return;
+    }
+    applyLayout(layout);
+    setOpenPopover(false);
+  };
 
   useEffect(() => {
     if (!openPopover) return;
@@ -94,7 +105,7 @@ export function ViewLayoutButton() {
                 >
                   <LayoutPopover
                     selected={previewLayout}
-                    onSelect={setPreviewLayout}
+                    onSelect={handleSelectLayout}
                     onOpenPreview={() => {
                       setOpenPreview(true);
                       setOpenPopover(false);

@@ -29,16 +29,18 @@ export function LayoutPopover({ selected, onSelect, onOpenPreview }: LayoutPopov
         ))}
       </div>
 
-      <div className="border-t border-white/10 p-3">
-        <button
-          data-testid="open-layout-preview"
-          type="button"
-          onClick={onOpenPreview}
-          className="w-full rounded-xl border border-cyan-400/25 bg-cyan-400/12 px-4 py-2.5 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/20"
-        >
-          Open Preview
-        </button>
-      </div>
+      {selected === 'Custom Combination' ? (
+        <div className="border-t border-white/10 p-3">
+          <button
+            data-testid="open-layout-preview"
+            type="button"
+            onClick={onOpenPreview}
+            className="w-full rounded-xl border border-cyan-400/25 bg-cyan-400/12 px-4 py-2.5 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/20"
+          >
+            Open Preview
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

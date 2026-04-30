@@ -272,7 +272,7 @@ function toDashboardSnapshot(
       confidence: status.confidence ?? 0,
     },
     rgb: {
-      label: 'RGB Camera',
+      label: 'Visual Detection',
       resolution: '1080p',
       fps: 30,
       status: rgbHasFrame ? 'streaming' : 'paused',
@@ -283,7 +283,7 @@ function toDashboardSnapshot(
       lastFrameAtMs: timestampMs,
     },
     thermal: {
-      label: 'Thermal Camera',
+      label: 'Thermal Cam',
       resolution: '640x480',
       fps: 30,
       status: thermalHasFrame ? 'streaming' : 'paused',

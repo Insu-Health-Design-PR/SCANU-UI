@@ -10,6 +10,7 @@ import { SystemStatusPanel } from '@/components/panels/SystemStatusPanel';
 import { LayoutPreviewModal } from '@/components/view-layout/LayoutPreviewModal';
 import { layoutPresets } from '@/lib/constants';
 import { useDashboardStore } from '@/store/dashboardStore';
+import type { LayoutPreset } from '@/types/layout';
 
 type MainModuleId = 'rgb' | 'thermal' | 'pointCloud' | 'presence';
 
@@ -39,6 +40,7 @@ function LayoutSidebarPanel() {
   const {
     previewLayout,
     setPreviewLayout,
+    applyLayout,
     applyPreviewLayout,
     customModules,
     toggleCustomModule,
@@ -47,6 +49,14 @@ function LayoutSidebarPanel() {
     focusView,
     setFocusView,
   } = useDashboardStore();
+
+  const handleSelectLayout = (layout: LayoutPreset) => {
+    if (layout === 'Custom Combination') {
+      setPreviewLayout(layout);
+      return;
+    }
+    applyLayout(layout);
+  };
 
   return (
     <>
@@ -63,7 +73,7 @@ function LayoutSidebarPanel() {
               <button
                 key={layout}
                 type="button"
-                onClick={() => setPreviewLayout(layout)}
+                onClick={() => handleSelectLayout(layout)}
                 className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-white/[0.05]"
               >
                 <span
@@ -79,14 +89,16 @@ function LayoutSidebarPanel() {
           })}
         </div>
 
-        <button
-          data-testid="open-layout-preview"
-          type="button"
-          onClick={() => setOpenPreview(true)}
-          className="mt-4 w-full rounded-full border border-cyan-400/30 bg-cyan-400/15 px-4 py-2.5 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/22"
-        >
-          Open Preview
-        </button>
+        {previewLayout === 'Custom Combination' ? (
+          <button
+            data-testid="open-layout-preview"
+            type="button"
+            onClick={() => setOpenPreview(true)}
+            className="mt-4 w-full rounded-full border border-cyan-400/30 bg-cyan-400/15 px-4 py-2.5 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/22"
+          >
+            Open Preview
+          </button>
+        ) : null}
       </section>
 
       <LayoutPreviewModal
@@ -227,6 +239,18 @@ function OneCameraView() {
   );
 }
 
+function ThermalCamView() {
+  return (
+    <WithLayoutSidebar>
+      <div className="space-y-5">
+        <ThermalCameraPanel />
+        <PresenceAndOpsRow />
+        <ConsoleLogPanel />
+      </div>
+    </WithLayoutSidebar>
+  );
+}
+
 function TwoCameraView() {
   return (
     <WithLayoutSidebar>
@@ -271,13 +295,15 @@ export function LayoutRenderer() {
   const layout = useDashboardStore((state) => state.appliedLayout);
 
   switch (layout) {
-    case '1 Camera':
+    case 'Visual Detection':
       return <OneCameraView />;
-    case '2 Cameras':
+    case 'Thermal Cam':
+      return <ThermalCamView />;
+    case 'Visual + Thermal':
       return <TwoCameraView />;
-    case 'RGB + Point Cloud':
+    case 'Visual Detection + Point Cloud':
       return <DualView mode="rgb+pc" />;
-    case 'Thermal + Point Cloud':
+    case 'Thermal Cam + Point Cloud':
       return <DualView mode="thermal+pc" />;
     case 'Point Cloud Only':
       return <PointCloudOnlyView />;

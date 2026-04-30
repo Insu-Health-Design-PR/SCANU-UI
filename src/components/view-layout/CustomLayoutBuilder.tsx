@@ -21,10 +21,10 @@ export function CustomLayoutBuilder({
 }: CustomLayoutBuilderProps) {
   const moduleKeys = Object.keys(modules) as Array<keyof CustomLayoutModules>;
   const labels: Record<keyof CustomLayoutModules, string> = {
-    rgb: 'RGB Camera',
-    thermal: 'Thermal Camera',
+    rgb: 'Visual Detection',
+    thermal: 'Thermal Cam',
     pointCloud: 'Point Cloud',
-    presence: 'Presence Graph',
+    presence: 'Presence Sensor',
     systemStatus: 'System Status',
     execution: 'Execution Panel',
     consoleLog: 'Console Log',
@@ -36,8 +36,8 @@ export function CustomLayoutBuilder({
   };
 
   const focusCandidates: Array<{ key: FocusView; label: string; enabled: boolean }> = [
-    { key: 'rgb', label: 'RGB Camera', enabled: modules.rgb },
-    { key: 'thermal', label: 'Thermal Camera', enabled: modules.thermal },
+    { key: 'rgb', label: 'Visual Detection', enabled: modules.rgb },
+    { key: 'thermal', label: 'Thermal Cam', enabled: modules.thermal },
     { key: 'pointCloud', label: 'Point Cloud', enabled: modules.pointCloud },
     { key: 'presence', label: 'Presence Sensor', enabled: modules.presence },
   ];

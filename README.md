@@ -116,8 +116,8 @@ Install Command: npm ci
 
 ## Main UI Areas
 
-- RGB Camera
-- Thermal Camera
+- Visual Detection
+- Thermal Cam
 - Point Cloud
 - Presence Sensor
 - System Status

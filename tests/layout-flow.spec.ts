@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-const LAYOUT_OPTION_2_CAMERAS = '[data-testid="layout-option-2-cameras"]';
+const LAYOUT_OPTION_VISUAL_THERMAL = '[data-testid="layout-option-visual-thermal"]';
+const LAYOUT_OPTION_CUSTOM = '[data-testid="layout-option-custom-combination"]';
 const VIEW_LAYOUT_BUTTON = '[data-testid="view-layout-button"]';
 const OPEN_PREVIEW_BUTTON = '[data-testid="open-layout-preview"]';
-const APPLY_LAYOUT_BUTTON = '[data-testid="apply-layout"]';
 const CLOSE_LAYOUT_BUTTON = '[data-testid="close-layout-preview"]';
 
 const PREFS_KEY = 'scanu-layer8-ui-prefs';
@@ -12,21 +12,17 @@ test('layout flow persists after refresh', async ({ page }) => {
   await page.goto('/');
 
   await page.click(VIEW_LAYOUT_BUTTON);
-  await page.click(LAYOUT_OPTION_2_CAMERAS);
-  await page.click(OPEN_PREVIEW_BUTTON);
+  await page.click(LAYOUT_OPTION_VISUAL_THERMAL);
 
-  await expect(page.getByText('Layout Preview: 2 Cameras')).toBeVisible();
-  await page.click(APPLY_LAYOUT_BUTTON);
-
-  await expect(page.getByText('RGB Camera')).toBeVisible();
-  await expect(page.getByText('Thermal Camera')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Visual Detection' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Thermal Cam' })).toBeVisible();
 
   const beforeReload = await page.evaluate((key) => {
     return window.localStorage.getItem(key);
   }, PREFS_KEY);
 
   expect(beforeReload).toBeTruthy();
-  expect(beforeReload ?? '').toContain('2 Cameras');
+  expect(beforeReload ?? '').toContain('Visual + Thermal');
 
   await page.reload();
 
@@ -49,7 +45,8 @@ test('layout preview modal stays usable in constrained viewports', async ({ page
     await page.goto('/');
 
     await page.getByTestId('view-layout-button').click();
-    await page.getByTestId('open-layout-preview').last().click();
+    await page.locator(LAYOUT_OPTION_CUSTOM).click();
+    await page.locator(OPEN_PREVIEW_BUTTON).last().click();
 
     const dialog = page.getByRole('dialog', { name: /layout preview/i });
     await expect(dialog).toBeVisible();

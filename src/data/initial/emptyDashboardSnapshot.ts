@@ -20,7 +20,7 @@ export const emptyDashboardSnapshot: DashboardSnapshot = {
     confidence: 0,
   },
   rgb: {
-    label: 'RGB Camera',
+    label: 'Visual Detection',
     resolution: '1080p',
     fps: 30,
     status: 'paused',
@@ -31,7 +31,7 @@ export const emptyDashboardSnapshot: DashboardSnapshot = {
     lastFrameAtMs: now,
   },
   thermal: {
-    label: 'Thermal Camera',
+    label: 'Thermal Cam',
     resolution: '640x480',
     fps: 30,
     status: 'paused',

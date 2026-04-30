@@ -79,7 +79,7 @@ export function ThermalCameraPanel() {
   };
 
   return (
-    <PanelCard title="Thermal Camera" icon={<Thermometer className="h-4 w-4" />} action={<Maximize2 className="h-4 w-4 text-slate-500" />}>
+    <PanelCard title="Thermal Cam" icon={<Thermometer className="h-4 w-4" />} action={<Maximize2 className="h-4 w-4 text-slate-500" />}>
       <div className="mb-3 flex flex-wrap gap-2">
         <StatusChip label={hasFeed ? 'MJPEG Feed' : 'No Feed'} tone={hasFeed ? 'cyan' : 'amber'} />
         <StatusChip label={statusLabel} tone={isRunning ? 'cyan' : 'slate'} />

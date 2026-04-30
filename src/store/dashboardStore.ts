@@ -21,6 +21,7 @@ interface DashboardStore extends UiPreferences {
   setSnapshot: (snapshot: DashboardSnapshot) => void;
   updateSnapshot: (updater: (current: DashboardSnapshot) => DashboardSnapshot) => void;
   setPreviewLayout: (layout: LayoutPreset) => void;
+  applyLayout: (layout: LayoutPreset) => void;
   applyPreviewLayout: () => void;
   setFocusView: (focus: FocusView) => void;
   toggleCustomModule: (key: keyof CustomLayoutModules) => void;
@@ -36,10 +37,18 @@ const defaultPrefs: UiPreferences = {
   customModules: defaultModules,
 };
 
+function migrateLayoutPreset(layout: unknown): LayoutPreset | undefined {
+  if (layout === '1 Camera') return 'Visual Detection';
+  if (layout === '2 Cameras') return 'Visual + Thermal';
+  if (layout === 'RGB + Point Cloud') return 'Visual Detection + Point Cloud';
+  if (layout === 'Thermal + Point Cloud') return 'Thermal Cam + Point Cloud';
+  return typeof layout === 'string' ? (layout as LayoutPreset) : undefined;
+}
+
 function normalizePrefs(parsed: Partial<UiPreferences>): UiPreferences {
   return {
-    appliedLayout: parsed.appliedLayout ?? defaultPrefs.appliedLayout,
-    previewLayout: parsed.previewLayout ?? defaultPrefs.previewLayout,
+    appliedLayout: migrateLayoutPreset(parsed.appliedLayout) ?? defaultPrefs.appliedLayout,
+    previewLayout: migrateLayoutPreset(parsed.previewLayout) ?? defaultPrefs.previewLayout,
     focusView: parsed.focusView ?? defaultPrefs.focusView,
     layoutStyle: parsed.layoutStyle ?? defaultPrefs.layoutStyle,
     customModules: {
@@ -96,6 +105,17 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     savePrefs({
       appliedLayout: state.appliedLayout,
       previewLayout,
+      focusView: state.focusView,
+      layoutStyle: state.layoutStyle,
+      customModules: state.customModules,
+    });
+  },
+  applyLayout: (layout) => {
+    set({ appliedLayout: layout, previewLayout: layout });
+    const state = get();
+    savePrefs({
+      appliedLayout: state.appliedLayout,
+      previewLayout: state.previewLayout,
       focusView: state.focusView,
       layoutStyle: state.layoutStyle,
       customModules: state.customModules,
