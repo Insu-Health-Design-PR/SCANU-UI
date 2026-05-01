@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Camera } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
+import { CollapsibleControls } from '@/components/shared/CollapsibleControls';
 import { PanelCard } from '@/components/shared/PanelCard';
 import { StatusChip } from '@/components/shared/StatusChip';
 import { dashboardApi } from '@/services/dashboardApi';
@@ -19,6 +20,7 @@ export function RgbCameraPanel() {
   const rgb = useDashboardStore((state) => state.snapshot.rgb);
   const imageSrc = dashboardApi.aiCameraPreviewUrl();
   const [streamError, setStreamError] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<AiCameraAction | null>(null);
   const [controlText, setControlText] = useState('Visual detection controls ready.');
 
@@ -75,41 +77,42 @@ export function RgbCameraPanel() {
         <span>|</span>
         <span>Latency {rgb.latencyMs} ms</span>
       </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-4">
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => void runAiCameraAction('run')}
-          disabled={pendingAction !== null}
-        >
-          {pendingAction === 'run' ? 'Starting...' : 'Run'}
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => void runAiCameraAction('stop')}
-          disabled={pendingAction !== null}
-        >
-          {pendingAction === 'stop' ? 'Stopping...' : 'Stop'}
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => void runAiCameraAction('restart')}
-          disabled={pendingAction !== null}
-        >
-          {pendingAction === 'restart' ? 'Restarting...' : 'Restart'}
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => void runAiCameraAction('status')}
-          disabled={pendingAction !== null}
-        >
-          {pendingAction === 'status' ? 'Checking...' : 'Status'}
-        </Button>
-      </div>
-      <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-2 text-xs text-slate-400">{controlText}</div>
+      <CollapsibleControls open={controlsOpen} onToggle={() => setControlsOpen((open) => !open)} status={controlText}>
+        <div className="grid gap-2 sm:grid-cols-4">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => void runAiCameraAction('run')}
+            disabled={pendingAction !== null}
+          >
+            {pendingAction === 'run' ? 'Starting...' : 'Run'}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void runAiCameraAction('stop')}
+            disabled={pendingAction !== null}
+          >
+            {pendingAction === 'stop' ? 'Stopping...' : 'Stop'}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void runAiCameraAction('restart')}
+            disabled={pendingAction !== null}
+          >
+            {pendingAction === 'restart' ? 'Restarting...' : 'Restart'}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void runAiCameraAction('status')}
+            disabled={pendingAction !== null}
+          >
+            {pendingAction === 'status' ? 'Checking...' : 'Status'}
+          </Button>
+        </div>
+      </CollapsibleControls>
     </PanelCard>
   );
 }

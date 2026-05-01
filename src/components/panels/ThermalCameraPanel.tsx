@@ -3,6 +3,7 @@ import { Thermometer } from 'lucide-react';
 import { PanelCard } from '@/components/shared/PanelCard';
 import { StatusChip } from '@/components/shared/StatusChip';
 import { Button } from '@/components/shared/Button';
+import { CollapsibleControls } from '@/components/shared/CollapsibleControls';
 import { useAsync } from '@/hooks/useAsync';
 import { dashboardApi, type ThermalStatusResponse } from '@/services/dashboardApi';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -26,6 +27,7 @@ export function ThermalCameraPanel() {
   const thermal = useDashboardStore((state) => state.snapshot.thermal);
   const streamUrl = useMemo(() => dashboardApi.thermalPreviewUrl(), []);
   const [streamError, setStreamError] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<ThermalAction | null>(null);
   const [controlText, setControlText] = useState('Thermal controls ready.');
 
@@ -96,41 +98,42 @@ export function ThermalCameraPanel() {
         <span>Latency {thermal.latencyMs} ms</span>
       </div>
       <div className="mt-3 text-xs text-slate-400">{getDeviceLabel(thermalStatus)}</div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-4">
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => void runThermalAction('run')}
-          disabled={pendingAction !== null}
-        >
-          {pendingAction === 'run' ? 'Starting...' : 'Run'}
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => void runThermalAction('stop')}
-          disabled={pendingAction !== null}
-        >
-          {pendingAction === 'stop' ? 'Stopping...' : 'Stop'}
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => void runThermalAction('restart')}
-          disabled={pendingAction !== null}
-        >
-          {pendingAction === 'restart' ? 'Restarting...' : 'Restart'}
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => void runThermalAction('auto')}
-          disabled={pendingAction !== null}
-        >
-          {pendingAction === 'auto' ? 'Detecting...' : 'Auto'}
-        </Button>
-      </div>
-      <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-2 text-xs text-slate-400">{controlText}</div>
+      <CollapsibleControls open={controlsOpen} onToggle={() => setControlsOpen((open) => !open)} status={controlText}>
+        <div className="grid gap-2 sm:grid-cols-4">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => void runThermalAction('run')}
+            disabled={pendingAction !== null}
+          >
+            {pendingAction === 'run' ? 'Starting...' : 'Run'}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void runThermalAction('stop')}
+            disabled={pendingAction !== null}
+          >
+            {pendingAction === 'stop' ? 'Stopping...' : 'Stop'}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void runThermalAction('restart')}
+            disabled={pendingAction !== null}
+          >
+            {pendingAction === 'restart' ? 'Restarting...' : 'Restart'}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void runThermalAction('auto')}
+            disabled={pendingAction !== null}
+          >
+            {pendingAction === 'auto' ? 'Detecting...' : 'Auto'}
+          </Button>
+        </div>
+      </CollapsibleControls>
     </PanelCard>
   );
 }
