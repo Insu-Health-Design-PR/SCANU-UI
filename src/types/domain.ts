@@ -8,6 +8,11 @@ export interface RenderPoint {
   top: string;
   size: string;
   opacity: number;
+  xMeters: number;
+  yMeters: number;
+  zMeters: number;
+  distanceMeters: number;
+  color: string;
 }
 
 export interface CameraStream {

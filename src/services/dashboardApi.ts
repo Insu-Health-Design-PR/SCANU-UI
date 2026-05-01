@@ -37,6 +37,8 @@ interface MmwavePreviewResponse {
   point_cloud?: unknown[];
   presence?: boolean | { detected?: boolean; confidence?: number } | null;
   timestamp_ms?: number;
+  update_rate_hz?: number;
+  rate_hz?: number;
 }
 
 interface CameraWsPayload {
@@ -181,12 +183,16 @@ function getNumericField(obj: Record<string, unknown>, ...keys: string[]): numbe
 function toRenderPoints(raw: unknown[]): RenderPoint[] {
   if (!Array.isArray(raw) || raw.length === 0) return [];
 
+  const lateralLimitM = 3;
+  const depthLimitM = 6;
+  const minDepthM = 0;
+
   const parsed = raw
     .map((item, idx) => {
       if (!item || typeof item !== 'object') return null;
       const obj = item as Record<string, unknown>;
       const x = getNumericField(obj, 'x', 'x_m', 'pos_x');
-      const y = getNumericField(obj, 'y', 'y_m', 'pos_y');
+      const y = getNumericField(obj, 'y', 'y_m', 'pos_y', 'range_m', 'range');
       const z = getNumericField(obj, 'z', 'z_m', 'pos_z') ?? 0;
       if (x === null || y === null) return null;
       return { idx, x, y, z };
@@ -195,25 +201,26 @@ function toRenderPoints(raw: unknown[]): RenderPoint[] {
 
   if (parsed.length === 0) return [];
 
-  const xs = parsed.map((p) => p.x);
-  const ys = parsed.map((p) => p.y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const dx = maxX - minX || 1;
-  const dy = maxY - minY || 1;
-
   return parsed.map((p) => {
-    const nx = (p.x - minX) / dx;
-    const ny = (p.y - minY) / dy;
-    const depthInfluence = Math.max(0, Math.min(1, 1 - Math.abs(p.z) / 6));
+    const clampedX = Math.max(-lateralLimitM, Math.min(lateralLimitM, p.x));
+    const clampedY = Math.max(minDepthM, Math.min(depthLimitM, Math.abs(p.y)));
+    const lateralNorm = (clampedX + lateralLimitM) / (lateralLimitM * 2);
+    const depthNorm = (clampedY - minDepthM) / (depthLimitM - minDepthM);
+    const heightInfluence = Math.max(0, Math.min(1, 1 - Math.abs(p.z) / 3));
+    const distanceMeters = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+    const color = distanceMeters < 1.5 ? '#fbbf24' : distanceMeters < 3.5 ? '#34d399' : '#67e8f9';
+
     return {
       id: p.idx,
-      left: `${8 + nx * 84}%`,
-      top: `${10 + (1 - ny) * 74}%`,
-      size: `${2 + depthInfluence * 3}px`,
-      opacity: 0.3 + depthInfluence * 0.55,
+      left: `${8 + lateralNorm * 84}%`,
+      top: `${88 - depthNorm * 76}%`,
+      size: `${5 + heightInfluence * 7}px`,
+      opacity: 0.45 + heightInfluence * 0.5,
+      xMeters: p.x,
+      yMeters: p.y,
+      zMeters: p.z,
+      distanceMeters,
+      color,
     };
   });
 }
@@ -280,10 +287,10 @@ function toDashboardSnapshot(
       lastFrameAtMs: timestampMs,
     },
     pointCloud: {
-      trackedPoints: pointCloudRaw.length,
+      trackedPoints: metrics.tracked_points ?? pointCloudRaw.length,
       confidence: status.confidence ?? 0,
       lastUpdateMs: Math.max(0, nowMs - timestampMs),
-      updateRateHz: 0,
+      updateRateHz: mmwave.update_rate_hz ?? mmwave.rate_hz ?? 0,
       source: 'live',
       stale: pointCloudRaw.length === 0,
       lastFrameAtMs: timestampMs,
