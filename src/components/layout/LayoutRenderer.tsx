@@ -11,10 +11,10 @@ type MainModuleId = 'rgb' | 'thermal' | 'pointCloud' | 'presence';
 
 const MAIN_MODULE_ORDER: MainModuleId[] = ['rgb', 'thermal', 'pointCloud', 'presence'];
 
-function renderMainModule(id: MainModuleId) {
-  if (id === 'rgb') return <RgbCameraPanel key={id} />;
-  if (id === 'thermal') return <ThermalCameraPanel key={id} />;
-  if (id === 'pointCloud') return <PointCloudPanel key={id} />;
+function renderMainModule(id: MainModuleId, compactFrame = false) {
+  if (id === 'rgb') return <RgbCameraPanel key={id} compactFrame={compactFrame} />;
+  if (id === 'thermal') return <ThermalCameraPanel key={id} compactFrame={compactFrame} />;
+  if (id === 'pointCloud') return <PointCloudPanel key={id} compactFrame={compactFrame} />;
   return <PresenceSensorPanel key={id} />;
 }
 
@@ -45,7 +45,7 @@ function CustomCombinationView() {
   if (layoutStyle === 'focus' || layoutStyle === 'fullscreen') {
     return (
       <div className="space-y-5">
-        {focusModule ? renderMainModule(focusModule) : null}
+        {focusModule ? renderMainModule(focusModule, true) : null}
         {otherModules.length ? <div className="grid gap-5 lg:grid-cols-2">{otherModules.map((id) => renderMainModule(id))}</div> : null}
         {hasOps ? (
           <div className="grid gap-5 lg:grid-cols-2">
@@ -78,7 +78,7 @@ function TripleView() {
       <EqualPair>
         {[<RgbCameraPanel key="rgb" />, <ThermalCameraPanel key="thermal" />]}
       </EqualPair>
-      <PointCloudPanel />
+      <PointCloudPanel compactFrame />
     </div>
   );
 }
@@ -88,9 +88,9 @@ export function LayoutRenderer() {
 
   switch (layout) {
     case 'Visual Detection':
-      return <RgbCameraPanel />;
+      return <RgbCameraPanel compactFrame />;
     case 'Thermal Cam':
-      return <ThermalCameraPanel />;
+      return <ThermalCameraPanel compactFrame />;
     case 'Visual + Thermal':
       return (
         <EqualPair>
@@ -110,7 +110,7 @@ export function LayoutRenderer() {
         </EqualPair>
       );
     case 'Point Cloud Only':
-      return <PointCloudPanel />;
+      return <PointCloudPanel compactFrame />;
     case 'Custom Combination':
       return <CustomCombinationView />;
     case 'Triple View':

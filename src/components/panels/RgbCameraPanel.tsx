@@ -4,10 +4,15 @@ import { Button } from '@/components/shared/Button';
 import { CollapsibleControls } from '@/components/shared/CollapsibleControls';
 import { PanelCard } from '@/components/shared/PanelCard';
 import { StatusChip } from '@/components/shared/StatusChip';
+import { cn } from '@/lib/cn';
 import { dashboardApi } from '@/services/dashboardApi';
 import { useDashboardStore } from '@/store/dashboardStore';
 
 type AiCameraAction = 'run' | 'stop' | 'restart' | 'status';
+
+interface RgbCameraPanelProps {
+  compactFrame?: boolean;
+}
 
 function getResultMessage(result: Record<string, unknown>): string {
   const message = result.message ?? result.detail ?? result.status ?? result.state ?? result.error;
@@ -16,7 +21,7 @@ function getResultMessage(result: Record<string, unknown>): string {
   return 'OK';
 }
 
-export function RgbCameraPanel() {
+export function RgbCameraPanel({ compactFrame = false }: RgbCameraPanelProps) {
   const rgb = useDashboardStore((state) => state.snapshot.rgb);
   const imageSrc = dashboardApi.aiCameraPreviewUrl();
   const [streamError, setStreamError] = useState(false);
@@ -25,6 +30,7 @@ export function RgbCameraPanel() {
   const [controlText, setControlText] = useState('Visual detection controls ready.');
 
   const hasFeed = Boolean(imageSrc) && !streamError;
+  const frameClassName = compactFrame ? 'aspect-[16/8]' : 'aspect-[4/3]';
 
   const runAiCameraAction = async (action: AiCameraAction) => {
     setPendingAction(action);
@@ -58,12 +64,12 @@ export function RgbCameraPanel() {
           <img
             src={imageSrc}
             alt="Visual detection stream"
-            className="aspect-[4/3] w-full object-cover"
+            className={cn(frameClassName, 'w-full object-cover')}
             onError={() => setStreamError(true)}
             onLoad={() => setStreamError(false)}
           />
         ) : (
-          <div className="flex aspect-[4/3] items-center justify-center bg-slate-950 px-4 text-center text-sm text-slate-400">
+          <div className={cn('flex items-center justify-center bg-slate-950 px-4 text-center text-sm text-slate-400', frameClassName)}>
             No visual detection stream from backend
           </div>
         )}

@@ -4,10 +4,15 @@ import { Button } from '@/components/shared/Button';
 import { CollapsibleControls } from '@/components/shared/CollapsibleControls';
 import { PanelCard } from '@/components/shared/PanelCard';
 import { StatusChip } from '@/components/shared/StatusChip';
+import { cn } from '@/lib/cn';
 import { dashboardApi } from '@/services/dashboardApi';
 import { useDashboardStore } from '@/store/dashboardStore';
 
 type MmwaveAction = 'run' | 'stop' | 'restart' | 'status';
+
+interface PointCloudPanelProps {
+  compactFrame?: boolean;
+}
 
 function formatMeters(value: number): string {
   return `${value.toFixed(1)}m`;
@@ -22,7 +27,7 @@ function getResultMessage(result: Record<string, unknown>): string {
   return 'OK';
 }
 
-export function PointCloudPanel() {
+export function PointCloudPanel({ compactFrame = false }: PointCloudPanelProps) {
   const pointCloud = useDashboardStore((state) => state.snapshot.pointCloud);
   const [controlsOpen, setControlsOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<MmwaveAction | null>(null);
@@ -35,6 +40,7 @@ export function PointCloudPanel() {
   const trackedPoints = pointCloud.trackedPoints;
   const updateAgeSeconds = pointCloud.lastUpdateMs / 1000;
   const updateRateHz = pointCloud.updateRateHz;
+  const frameClassName = compactFrame ? 'aspect-[16/8]' : 'aspect-[4/3]';
 
   const runMmwaveAction = async (action: MmwaveAction) => {
     setPendingAction(action);
@@ -64,7 +70,7 @@ export function PointCloudPanel() {
         <StatusChip label={pointCloud.stale ? 'Waiting' : 'Fresh'} tone={pointCloud.stale ? 'slate' : 'green'} />
       </div>
       <div className="relative overflow-hidden rounded-[1.2rem] border border-cyan-400/10 bg-[radial-gradient(circle_at_50%_92%,rgba(45,212,191,0.18),transparent_32%),linear-gradient(180deg,#08111f,#05070e)]">
-        <div className="relative aspect-[4/3]">
+        <div className={cn('relative', frameClassName)}>
           <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.055)_1px,transparent_1px)] bg-[size:48px_48px]" />
           <div className="absolute left-[8%] right-[8%] top-[12%] border-t border-dashed border-cyan-200/10" />
           <div className="absolute left-[8%] right-[8%] top-[50%] border-t border-dashed border-cyan-200/10" />

@@ -5,10 +5,15 @@ import { StatusChip } from '@/components/shared/StatusChip';
 import { Button } from '@/components/shared/Button';
 import { CollapsibleControls } from '@/components/shared/CollapsibleControls';
 import { useAsync } from '@/hooks/useAsync';
+import { cn } from '@/lib/cn';
 import { dashboardApi, type ThermalStatusResponse } from '@/services/dashboardApi';
 import { useDashboardStore } from '@/store/dashboardStore';
 
 type ThermalAction = 'run' | 'stop' | 'restart' | 'auto';
+
+interface ThermalCameraPanelProps {
+  compactFrame?: boolean;
+}
 
 function getStatusLabel(status: ThermalStatusResponse | null): string {
   if (!status) return 'Status unknown';
@@ -23,7 +28,7 @@ function getDeviceLabel(status: ThermalStatusResponse | null): string {
   return typeof device === 'string' && device.trim() ? device : 'No device reported';
 }
 
-export function ThermalCameraPanel() {
+export function ThermalCameraPanel({ compactFrame = false }: ThermalCameraPanelProps) {
   const thermal = useDashboardStore((state) => state.snapshot.thermal);
   const streamUrl = useMemo(() => dashboardApi.thermalPreviewUrl(), []);
   const [streamError, setStreamError] = useState(false);
@@ -41,6 +46,7 @@ export function ThermalCameraPanel() {
   const hasFeed = Boolean(imageSrc) && !streamError;
   const statusLabel = getStatusLabel(thermalStatus);
   const isRunning = thermalStatus?.running === true || statusLabel.toLowerCase().includes('run');
+  const frameClassName = compactFrame ? 'aspect-[16/8]' : 'aspect-[4/3]';
 
   const runThermalAction = async (action: ThermalAction) => {
     setPendingAction(action);
@@ -78,12 +84,12 @@ export function ThermalCameraPanel() {
           <img
             src={imageSrc}
             alt="Thermal stream"
-            className="aspect-[4/3] w-full object-cover"
+            className={cn(frameClassName, 'w-full object-cover')}
             onError={() => setStreamError(true)}
             onLoad={() => setStreamError(false)}
           />
         ) : (
-          <div className="flex aspect-[4/3] items-center justify-center bg-slate-950 px-4 text-center text-sm text-slate-400">
+          <div className={cn('flex items-center justify-center bg-slate-950 px-4 text-center text-sm text-slate-400', frameClassName)}>
             No thermal stream from backend
           </div>
         )}
