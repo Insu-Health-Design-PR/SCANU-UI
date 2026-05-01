@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Maximize2, Thermometer } from 'lucide-react';
+import { Thermometer } from 'lucide-react';
 import { PanelCard } from '@/components/shared/PanelCard';
 import { StatusChip } from '@/components/shared/StatusChip';
 import { Button } from '@/components/shared/Button';
@@ -66,23 +66,22 @@ export function ThermalCameraPanel() {
   };
 
   return (
-    <PanelCard title="Thermal Cam" icon={<Thermometer className="h-4 w-4" />} action={<Maximize2 className="h-4 w-4 text-slate-500" />}>
+    <PanelCard title="Thermal Cam" icon={<Thermometer className="h-4 w-4" />}>
       <div className="mb-3 flex flex-wrap gap-2">
         <StatusChip label={hasFeed ? 'MJPEG Feed' : 'No Feed'} tone={hasFeed ? 'cyan' : 'amber'} />
         <StatusChip label={statusLabel} tone={isRunning ? 'cyan' : 'slate'} />
-        {thermal.stale && thermal.frameBase64 && !streamError ? <StatusChip label="Stale" tone="red" /> : null}
       </div>
       <div className="overflow-hidden rounded-[1.2rem] border border-orange-400/10 bg-slate-950">
         {hasFeed ? (
           <img
             src={imageSrc}
             alt="Thermal stream"
-            className="aspect-[16/9] w-full object-cover"
+            className="aspect-[4/3] w-full object-cover"
             onError={() => setStreamError(true)}
             onLoad={() => setStreamError(false)}
           />
         ) : (
-          <div className="flex aspect-[16/9] items-center justify-center bg-slate-950 px-4 text-center text-sm text-slate-400">
+          <div className="flex aspect-[4/3] items-center justify-center bg-slate-950 px-4 text-center text-sm text-slate-400">
             No thermal stream from backend
           </div>
         )}

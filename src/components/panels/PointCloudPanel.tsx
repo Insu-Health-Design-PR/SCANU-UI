@@ -11,7 +11,6 @@ export function PointCloudPanel() {
     <PanelCard title="Point Cloud" icon={<Radar className="h-4 w-4" />}>
       <div className="mb-3 flex flex-wrap gap-2">
         <StatusChip label={hasPoints ? 'Live Feed' : 'No Feed'} tone={hasPoints ? 'cyan' : 'amber'} />
-        {pointCloud.stale ? <StatusChip label="Stale" tone="red" /> : null}
       </div>
       <div className="relative overflow-hidden rounded-[1.2rem] border border-cyan-400/10 bg-[linear-gradient(180deg,#08111f,#05070e)]">
         <div className="aspect-[16/7]">

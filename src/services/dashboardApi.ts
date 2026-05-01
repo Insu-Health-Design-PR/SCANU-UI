@@ -506,8 +506,8 @@ export const dashboardApi = {
     return postEmpty<ControlResult>(`${API_BASE}/api/restart/${encodeURIComponent(radarId)}`);
   },
 
-  async reset(radarId = 'radar_main'): Promise<ControlResult> {
-    return postEmpty<ControlResult>(`${API_BASE}/api/config/reset/${encodeURIComponent(radarId)}`);
+  async reset(): Promise<Record<string, unknown>> {
+    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/restart_all`);
   },
 
   async runAll(): Promise<Record<string, unknown>> {
@@ -530,8 +530,8 @@ export const dashboardApi = {
     return fetchJson<Record<string, unknown>>(`${API_BASE}/api/config`);
   },
 
-  async updateConfig(config: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return putJson<Record<string, unknown>>(`${API_BASE}/api/config`, config);
+  async updateConfig(settings: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return putJson<Record<string, unknown>>(`${API_BASE}/api/config`, { settings });
   },
 
   async resetConfig(): Promise<Record<string, unknown>> {
@@ -550,8 +550,10 @@ export const dashboardApi = {
     return fetchJson<Record<string, unknown>>(`${API_BASE}/api/devices/v4l2`);
   },
 
-  async fetchV4l2Formats(): Promise<Record<string, unknown>> {
-    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/devices/v4l2/formats`);
+  async fetchV4l2Formats(index: number | string): Promise<Record<string, unknown>> {
+    const url = new URL('/api/devices/v4l2/formats', API_BASE);
+    url.searchParams.set('index', String(index));
+    return fetchJson<Record<string, unknown>>(url.toString());
   },
 
   async fetchSerialDevices(): Promise<Record<string, unknown>> {
@@ -570,8 +572,8 @@ export const dashboardApi = {
     return putJson<Record<string, unknown>>(`${API_BASE}/api/model/profiles`, payload);
   },
 
-  async applyModelProfile(profileName: string): Promise<Record<string, unknown>> {
-    return postJson<Record<string, unknown>>(`${API_BASE}/api/model/profiles/apply`, { profile_name: profileName });
+  async applyModelProfile(profileId: string): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/model/profiles/apply`, { id: profileId });
   },
 
   async snapshotModelProfile(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -587,7 +589,7 @@ export const dashboardApi = {
   },
 
   async applyAiCameraProfileByName(profileName: string): Promise<Record<string, unknown>> {
-    return postJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/profiles/apply_by_name`, { profile_name: profileName });
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/profiles/apply_by_name`, { name: profileName });
   },
 
   async fetchAiCameraStatus(): Promise<Record<string, unknown>> {
@@ -654,16 +656,16 @@ export const dashboardApi = {
     return mediaUrl('/embed/webcam');
   },
 
-  async createWebrtcWebcamOffer(offer: string): Promise<Record<string, unknown>> {
-    return postJson<Record<string, unknown>>(`${API_BASE}/api/webrtc/webcam/offer`, { offer });
+  async createWebrtcWebcamOffer(sdp: string, type = 'offer'): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/webrtc/webcam/offer`, { sdp, type });
   },
 
-  async createWebrtcAiCameraOffer(offer: string): Promise<Record<string, unknown>> {
-    return postJson<Record<string, unknown>>(`${API_BASE}/api/webrtc/ai_camera/offer`, { offer });
+  async createWebrtcAiCameraOffer(sdp: string, type = 'offer'): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/webrtc/ai_camera/offer`, { sdp, type });
   },
 
-  async createAiCameraWebrtcOffer(offer: string): Promise<Record<string, unknown>> {
-    return postJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/webrtc/offer`, { offer });
+  async createAiCameraWebrtcOffer(sdp: string, type = 'offer'): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/webrtc/offer`, { sdp, type });
   },
 
   aiCameraPreviewUrl(): string {

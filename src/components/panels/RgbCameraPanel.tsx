@@ -1,24 +1,69 @@
-import { Camera, Maximize2 } from 'lucide-react';
+import { useState } from 'react';
+import { Camera } from 'lucide-react';
+import { Button } from '@/components/shared/Button';
 import { PanelCard } from '@/components/shared/PanelCard';
 import { StatusChip } from '@/components/shared/StatusChip';
 import { dashboardApi } from '@/services/dashboardApi';
 import { useDashboardStore } from '@/store/dashboardStore';
 
+type AiCameraAction = 'run' | 'stop' | 'restart' | 'status';
+
+function getResultMessage(result: Record<string, unknown>): string {
+  const message = result.message ?? result.detail ?? result.status ?? result.state ?? result.error;
+  if (typeof message === 'string' && message.trim()) return message;
+  if (typeof result.ok === 'boolean') return result.ok ? 'OK' : 'Failed';
+  return 'OK';
+}
+
 export function RgbCameraPanel() {
   const rgb = useDashboardStore((state) => state.snapshot.rgb);
   const imageSrc = dashboardApi.aiCameraPreviewUrl();
+  const [streamError, setStreamError] = useState(false);
+  const [pendingAction, setPendingAction] = useState<AiCameraAction | null>(null);
+  const [controlText, setControlText] = useState('Visual detection controls ready.');
+
+  const hasFeed = Boolean(imageSrc) && !streamError;
+
+  const runAiCameraAction = async (action: AiCameraAction) => {
+    setPendingAction(action);
+    try {
+      const result =
+        action === 'run'
+          ? await dashboardApi.runAiCamera()
+          : action === 'stop'
+            ? await dashboardApi.stopAiCamera()
+            : action === 'restart'
+              ? await dashboardApi.restartAiCamera()
+              : await dashboardApi.fetchAiCameraStatus();
+
+      setControlText(`${action}: ${getResultMessage(result)}`);
+      if (action === 'run' || action === 'restart') setStreamError(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      setControlText(`${action}: FAILED (${message})`);
+    } finally {
+      setPendingAction(null);
+    }
+  };
 
   return (
-    <PanelCard title="Visual Detection" icon={<Camera className="h-4 w-4" />} action={<Maximize2 className="h-4 w-4 text-slate-500" />}>
+    <PanelCard title="Visual Detection" icon={<Camera className="h-4 w-4" />}>
       <div className="mb-3 flex flex-wrap gap-2">
-        <StatusChip label={imageSrc ? 'Live Feed' : 'No Feed'} tone={imageSrc ? 'cyan' : 'amber'} />
-        {rgb.stale ? <StatusChip label="Stale" tone="red" /> : null}
+        <StatusChip label={hasFeed ? 'Live Feed' : 'No Feed'} tone={hasFeed ? 'cyan' : 'amber'} />
       </div>
       <div className="overflow-hidden rounded-[1.2rem] border border-white/10 bg-slate-950">
-        {imageSrc ? (
-          <img src={imageSrc} alt="Visual detection stream" className="aspect-[16/9] w-full object-cover" />
+        {hasFeed ? (
+          <img
+            src={imageSrc}
+            alt="Visual detection stream"
+            className="aspect-[4/3] w-full object-cover"
+            onError={() => setStreamError(true)}
+            onLoad={() => setStreamError(false)}
+          />
         ) : (
-          <div className="flex aspect-[16/9] items-center justify-center bg-slate-950 text-sm text-slate-400">No visual detection frame from backend</div>
+          <div className="flex aspect-[4/3] items-center justify-center bg-slate-950 px-4 text-center text-sm text-slate-400">
+            No visual detection stream from backend
+          </div>
         )}
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-400">
@@ -30,6 +75,41 @@ export function RgbCameraPanel() {
         <span>|</span>
         <span>Latency {rgb.latencyMs} ms</span>
       </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-4">
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => void runAiCameraAction('run')}
+          disabled={pendingAction !== null}
+        >
+          {pendingAction === 'run' ? 'Starting...' : 'Run'}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => void runAiCameraAction('stop')}
+          disabled={pendingAction !== null}
+        >
+          {pendingAction === 'stop' ? 'Stopping...' : 'Stop'}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => void runAiCameraAction('restart')}
+          disabled={pendingAction !== null}
+        >
+          {pendingAction === 'restart' ? 'Restarting...' : 'Restart'}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => void runAiCameraAction('status')}
+          disabled={pendingAction !== null}
+        >
+          {pendingAction === 'status' ? 'Checking...' : 'Status'}
+        </Button>
+      </div>
+      <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-2 text-xs text-slate-400">{controlText}</div>
     </PanelCard>
   );
 }
