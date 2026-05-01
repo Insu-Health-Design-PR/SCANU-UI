@@ -78,9 +78,7 @@ function TripleView() {
       <EqualPair>
         {[<RgbCameraPanel key="rgb" />, <ThermalCameraPanel key="thermal" />]}
       </EqualPair>
-      <EqualPair>
-        {[<PointCloudPanel key="point-cloud" />, <PresenceSensorPanel key="presence" />]}
-      </EqualPair>
+      <PointCloudPanel />
     </div>
   );
 }
