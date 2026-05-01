@@ -1,18 +1,61 @@
+import { useState } from 'react';
 import { Radar } from 'lucide-react';
+import { Button } from '@/components/shared/Button';
+import { CollapsibleControls } from '@/components/shared/CollapsibleControls';
 import { PanelCard } from '@/components/shared/PanelCard';
 import { StatusChip } from '@/components/shared/StatusChip';
+import { dashboardApi } from '@/services/dashboardApi';
 import { useDashboardStore } from '@/store/dashboardStore';
+
+type MmwaveAction = 'run' | 'stop' | 'restart' | 'status';
 
 function formatMeters(value: number): string {
   return `${value.toFixed(1)}m`;
 }
 
+function getResultMessage(result: Record<string, unknown>): string {
+  const message = result.message ?? result.detail ?? result.status ?? result.state ?? result.reason ?? result.error;
+  if (typeof message === 'string' && message.trim()) return message;
+  if (typeof result.running === 'boolean') return result.running ? 'Running' : 'Stopped';
+  if (typeof result.success === 'boolean') return result.success ? 'OK' : 'Failed';
+  if (typeof result.ok === 'boolean') return result.ok ? 'OK' : 'Failed';
+  return 'OK';
+}
+
 export function PointCloudPanel() {
   const pointCloud = useDashboardStore((state) => state.snapshot.pointCloud);
-  const hasPoints = pointCloud.renderPoints.length > 0;
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<MmwaveAction | null>(null);
+  const [controlText, setControlText] = useState('mmWave controls ready.');
+  const renderPoints = pointCloud.renderPoints;
+  const hasPoints = renderPoints.length > 0;
   const nearestPoint = hasPoints
-    ? pointCloud.renderPoints.reduce((nearest, point) => (point.distanceMeters < nearest.distanceMeters ? point : nearest))
+    ? renderPoints.reduce((nearest, point) => (point.distanceMeters < nearest.distanceMeters ? point : nearest))
     : null;
+  const trackedPoints = pointCloud.trackedPoints;
+  const updateAgeSeconds = pointCloud.lastUpdateMs / 1000;
+  const updateRateHz = pointCloud.updateRateHz;
+
+  const runMmwaveAction = async (action: MmwaveAction) => {
+    setPendingAction(action);
+    try {
+      const result =
+        action === 'run'
+          ? await dashboardApi.runMmwave()
+          : action === 'stop'
+            ? await dashboardApi.stopMmwave()
+            : action === 'restart'
+              ? await dashboardApi.restartMmwave()
+              : await dashboardApi.fetchMmwaveStatus();
+
+      setControlText(`${action}: ${getResultMessage(result)}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      setControlText(`${action}: FAILED (${message})`);
+    } finally {
+      setPendingAction(null);
+    }
+  };
 
   return (
     <PanelCard title="Point Cloud" icon={<Radar className="h-4 w-4" />}>
@@ -33,7 +76,7 @@ export function PointCloudPanel() {
           <div className="absolute bottom-[7%] left-[9%] text-[10px] uppercase tracking-[0.18em] text-slate-600">-3m</div>
           <div className="absolute bottom-[7%] right-[9%] text-[10px] uppercase tracking-[0.18em] text-slate-600">+3m</div>
           {hasPoints ? (
-            pointCloud.renderPoints.map((point) => (
+            renderPoints.map((point) => (
               <span
                 key={point.id}
                 className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/40"
@@ -57,11 +100,47 @@ export function PointCloudPanel() {
         </div>
       </div>
       <div className="mt-3 grid gap-2 text-xs text-slate-400 md:grid-cols-4">
-        <span>Points {pointCloud.trackedPoints}</span>
+        <span>Points {trackedPoints}</span>
         <span>Nearest {nearestPoint ? formatMeters(nearestPoint.distanceMeters) : 'none'}</span>
-        <span>Update {(pointCloud.lastUpdateMs / 1000).toFixed(1)}s</span>
-        <span>Rate {pointCloud.updateRateHz.toFixed(1)} Hz</span>
+        <span>Update {updateAgeSeconds.toFixed(1)}s</span>
+        <span>Rate {updateRateHz.toFixed(1)} Hz</span>
       </div>
+      <CollapsibleControls open={controlsOpen} onToggle={() => setControlsOpen((open) => !open)} status={controlText}>
+        <div className="grid gap-2 sm:grid-cols-4">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => void runMmwaveAction('run')}
+            disabled={pendingAction !== null}
+          >
+            {pendingAction === 'run' ? 'Starting...' : 'Run'}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void runMmwaveAction('stop')}
+            disabled={pendingAction !== null}
+          >
+            {pendingAction === 'stop' ? 'Stopping...' : 'Stop'}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void runMmwaveAction('restart')}
+            disabled={pendingAction !== null}
+          >
+            {pendingAction === 'restart' ? 'Restarting...' : 'Restart'}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void runMmwaveAction('status')}
+            disabled={pendingAction !== null}
+          >
+            {pendingAction === 'status' ? 'Checking...' : 'Status'}
+          </Button>
+        </div>
+      </CollapsibleControls>
     </PanelCard>
   );
 }

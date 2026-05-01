@@ -472,6 +472,13 @@ export const dashboardApi = {
     return postEmpty<T>(`${API_BASE}/api/${component}/${action}`);
   },
 
+  async controlSensor<T = Record<string, unknown>>(
+    sensor: 'thermal' | 'webcam' | 'mmwave',
+    action: 'run' | 'stop' | 'restart',
+  ): Promise<T> {
+    return postEmpty<T>(`${API_BASE}/api/${action}/${sensor}`);
+  },
+
   // Convenience shortcuts
   async runThermal(): Promise<ThermalControlResult> {
     return this.controlComponent('thermal', 'run');
@@ -483,6 +490,22 @@ export const dashboardApi = {
 
   async restartThermal(): Promise<ThermalControlResult> {
     return this.controlComponent('thermal', 'restart');
+  },
+
+  async runMmwave(): Promise<Record<string, unknown>> {
+    return this.controlSensor('mmwave', 'run');
+  },
+
+  async stopMmwave(): Promise<Record<string, unknown>> {
+    return this.controlSensor('mmwave', 'stop');
+  },
+
+  async restartMmwave(): Promise<Record<string, unknown>> {
+    return this.controlSensor('mmwave', 'restart');
+  },
+
+  async fetchMmwaveStatus(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/status/mmwave`);
   },
 
   async fetchUiPrefs(): Promise<Partial<UiPreferences> | null> {
