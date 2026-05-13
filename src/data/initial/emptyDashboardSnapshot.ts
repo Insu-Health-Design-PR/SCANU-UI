@@ -58,4 +58,14 @@ export const emptyDashboardSnapshot: DashboardSnapshot = {
     timeline: emptyTimeline(),
   },
   alerts: [],
+  weapon: {
+    state: 'IDLE',
+    fusedScore: 0,
+    gunDetected: false,
+    unsafeScore: 0,
+    weaponConfidence: 0,
+    microDopplerBw: 0,
+    dopplerCentroid: 0,
+    azimuthStaticPeak: 0,
+  },
 };

@@ -1,4 +1,4 @@
-export type SystemState = 'UNKNOWN' | 'IDLE' | 'TRIGGERED' | 'SCANNING' | 'ALERT' | 'FAULT';
+export type SystemState = 'UNKNOWN' | 'IDLE' | 'TRIGGERED' | 'SCANNING' | 'ANOMALY_DETECTED' | 'ALERT' | 'FAULT';
 export type DashboardMode = 'live' | 'simulated';
 export type FeedSource = 'live';
 
@@ -63,6 +63,17 @@ export interface AlertRecord {
   message: string;
 }
 
+export interface WeaponSnapshot {
+  state: SystemState;
+  fusedScore: number;
+  gunDetected: boolean;
+  unsafeScore: number;
+  weaponConfidence: number;
+  microDopplerBw: number;
+  dopplerCentroid: number;
+  azimuthStaticPeak: number;
+}
+
 export interface DashboardSnapshot {
   mode: DashboardMode;
   state: SystemState;
@@ -72,4 +83,5 @@ export interface DashboardSnapshot {
   pointCloud: PointCloudSnapshot;
   presence: PresenceSnapshot;
   alerts: AlertRecord[];
+  weapon: WeaponSnapshot;
 }

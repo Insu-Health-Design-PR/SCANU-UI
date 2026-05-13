@@ -37,8 +37,6 @@ interface MmwavePreviewResponse {
   point_cloud?: unknown[];
   presence?: boolean | { detected?: boolean; confidence?: number } | null;
   timestamp_ms?: number;
-  update_rate_hz?: number;
-  rate_hz?: number;
 }
 
 interface CameraWsPayload {
@@ -47,6 +45,17 @@ interface CameraWsPayload {
   thermal_jpeg_b64?: string;
   frame_b64?: string;
   image_b64?: string;
+}
+
+interface WeaponWsPayload {
+  state?: string;
+  fused_score?: number;
+  gun_detected?: boolean;
+  unsafe_score?: number;
+  weapon_confidence?: number;
+  micro_doppler_bw?: number;
+  doppler_centroid?: number;
+  azimuth_static_peak?: number;
 }
 
 interface ControlResult {
@@ -181,48 +190,60 @@ function getNumericField(obj: Record<string, unknown>, ...keys: string[]): numbe
 }
 
 function toRenderPoints(raw: unknown[]): RenderPoint[] {
-  if (!Array.isArray(raw) || raw.length === 0) return [];
-
-  const lateralLimitM = 3;
-  const depthLimitM = 6;
-  const minDepthM = 0;
+  console.log('[RENDER-POINTS] 🎯 Input:', raw.length, 'points');
+  if (!Array.isArray(raw) || raw.length === 0) {
+    console.log('[RENDER-POINTS] ⚠️ Empty or not array');
+    return [];
+  }
 
   const parsed = raw
     .map((item, idx) => {
       if (!item || typeof item !== 'object') return null;
       const obj = item as Record<string, unknown>;
       const x = getNumericField(obj, 'x', 'x_m', 'pos_x');
-      const y = getNumericField(obj, 'y', 'y_m', 'pos_y', 'range_m', 'range');
+      const y = getNumericField(obj, 'y', 'y_m', 'pos_y');
       const z = getNumericField(obj, 'z', 'z_m', 'pos_z') ?? 0;
       if (x === null || y === null) return null;
       return { idx, x, y, z };
     })
     .filter(Boolean) as Array<{ idx: number; x: number; y: number; z: number }>;
 
-  if (parsed.length === 0) return [];
+  if (parsed.length === 0) {
+    console.log('[RENDER-POINTS] ❌ No valid points after parsing');
+    return [];
+  }
+  
+  console.log('[RENDER-POINTS] ✅ Parsed:', parsed.length, 'valid points');
 
-  return parsed.map((p) => {
-    const clampedX = Math.max(-lateralLimitM, Math.min(lateralLimitM, p.x));
-    const clampedY = Math.max(minDepthM, Math.min(depthLimitM, Math.abs(p.y)));
-    const lateralNorm = (clampedX + lateralLimitM) / (lateralLimitM * 2);
-    const depthNorm = (clampedY - minDepthM) / (depthLimitM - minDepthM);
-    const heightInfluence = Math.max(0, Math.min(1, 1 - Math.abs(p.z) / 3));
+  const xs = parsed.map((p) => p.x);
+  const ys = parsed.map((p) => p.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const dx = maxX - minX || 1;
+  const dy = maxY - minY || 1;
+
+  const result = parsed.map((p) => {
+    const nx = (p.x - minX) / dx;
+    const ny = (p.y - minY) / dy;
+    const depthInfluence = Math.max(0, Math.min(1, 1 - Math.abs(p.z) / 6));
     const distanceMeters = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
-    const color = distanceMeters < 1.5 ? '#fbbf24' : distanceMeters < 3.5 ? '#34d399' : '#67e8f9';
-
     return {
       id: p.idx,
-      left: `${8 + lateralNorm * 84}%`,
-      top: `${88 - depthNorm * 76}%`,
-      size: `${5 + heightInfluence * 7}px`,
-      opacity: 0.45 + heightInfluence * 0.5,
+      left: `${8 + nx * 84}%`,
+      top: `${10 + (1 - ny) * 74}%`,
+      size: `${2 + depthInfluence * 3}px`,
+      opacity: 0.3 + depthInfluence * 0.55,
       xMeters: p.x,
       yMeters: p.y,
       zMeters: p.z,
       distanceMeters,
-      color,
+      color: `hsl(${200 + depthInfluence * 40}, 80%, ${50 + depthInfluence * 20}%)`,
     };
   });
+  console.log('[RENDER-POINTS] 🎨 Final render points:', result.length, '- bounds x:[', minX.toFixed(2), ',', maxX.toFixed(2), '] y:[', minY.toFixed(2), ',', maxY.toFixed(2), ']');
+  return result;
 }
 
 function toDashboardSnapshot(
@@ -237,6 +258,7 @@ function toDashboardSnapshot(
   const nowMs = Date.now();
   const timestampMs = mmwave.timestamp_ms ?? nowMs;
   const pointCloudRaw = Array.isArray(mmwave.point_cloud) ? mmwave.point_cloud : [];
+  console.log('[SNAPSHOT-BUILD] 📊 Processing snapshot - points:', pointCloudRaw.length, 'presence:', mmwave.presence);
   const detected =
     typeof mmwave.presence === 'boolean'
       ? mmwave.presence
@@ -287,10 +309,10 @@ function toDashboardSnapshot(
       lastFrameAtMs: timestampMs,
     },
     pointCloud: {
-      trackedPoints: metrics.tracked_points ?? pointCloudRaw.length,
+      trackedPoints: pointCloudRaw.length,
       confidence: status.confidence ?? 0,
       lastUpdateMs: Math.max(0, nowMs - timestampMs),
-      updateRateHz: mmwave.update_rate_hz ?? mmwave.rate_hz ?? 0,
+      updateRateHz: 0,
       source: 'live',
       stale: pointCloudRaw.length === 0,
       lastFrameAtMs: timestampMs,
@@ -303,7 +325,141 @@ function toDashboardSnapshot(
       timeline: Array.from({ length: 30 }, () => Math.round(presenceConfidence * 100)),
     },
     alerts: [],
+    weapon: {
+      state: (status.state ?? 'IDLE') as DashboardSnapshot['weapon']['state'],
+      fusedScore: status.fused_score ?? 0,
+      gunDetected: false,
+      unsafeScore: 0,
+      weaponConfidence: 0,
+      microDopplerBw: 0,
+      dopplerCentroid: 0,
+      azimuthStaticPeak: 0,
+    },
   };
+}
+
+// SSE stream state
+let latestMmwaveData: MmwavePreviewResponse | null = null;
+let mmwaveEventSource: EventSource | null = null;
+
+// Weapon WebSocket
+let eventsSocket: WebSocket | null = null;
+let latestWeaponData: WeaponWsPayload | null = null;
+
+function initEventsSocket(): void {
+  if (eventsSocket && eventsSocket.readyState === WebSocket.OPEN) return;
+  const wsBase = API_BASE.replace(/^http/, 'ws');
+  const url = `${wsBase}/ws/events`;
+  eventsSocket = new WebSocket(url);
+  eventsSocket.onmessage = (event: MessageEvent) => {
+    try {
+      const msg = JSON.parse(event.data as string);
+      if (msg.event_type === 'weapon_update' && msg.payload) {
+        latestWeaponData = msg.payload as WeaponWsPayload;
+      }
+      if (msg.event_type === 'status_update' && msg.payload) {
+        const sp = msg.payload;
+        if (!latestWeaponData) latestWeaponData = {};
+        latestWeaponData.state = sp.state ?? latestWeaponData.state;
+        latestWeaponData.fused_score = sp.fused_score ?? latestWeaponData.fused_score;
+      }
+    } catch { /* ignore parse errors */ }
+  };
+  eventsSocket.onclose = () => {
+    eventsSocket = null;
+    setTimeout(() => initEventsSocket(), 3000);
+  };
+}
+
+function closeEventsSocket(): void {
+  if (eventsSocket) {
+    eventsSocket.onclose = null;
+    eventsSocket.close();
+    eventsSocket = null;
+  }
+}
+
+function applyWeaponUpdate(snapshot: DashboardSnapshot): DashboardSnapshot {
+  const w = latestWeaponData;
+  if (!w) return snapshot;
+  return {
+    ...snapshot,
+    weapon: {
+      state: (w.state ?? snapshot.weapon.state) as DashboardSnapshot['weapon']['state'],
+      fusedScore: w.fused_score ?? snapshot.weapon.fusedScore,
+      gunDetected: w.gun_detected ?? snapshot.weapon.gunDetected,
+      unsafeScore: w.unsafe_score ?? snapshot.weapon.unsafeScore,
+      weaponConfidence: w.weapon_confidence ?? snapshot.weapon.weaponConfidence,
+      microDopplerBw: w.micro_doppler_bw ?? snapshot.weapon.microDopplerBw,
+      dopplerCentroid: w.doppler_centroid ?? snapshot.weapon.dopplerCentroid,
+      azimuthStaticPeak: w.azimuth_static_peak ?? snapshot.weapon.azimuthStaticPeak,
+    },
+  };
+}
+
+function initMmwaveStream(): void {
+  console.log('[INIT-MMWAVE] Starting stream initialization...');
+  console.log('[INIT-MMWAVE] Current API_BASE:', API_BASE);
+  
+  if (mmwaveEventSource) {
+    console.log('[INIT-MMWAVE] EventSource already exists, skipping');
+    return;
+  }
+  
+  const mmwaveUrl = `${API_BASE}/api/mmwave/output/stream`;
+  console.log('[INIT-MMWAVE] Connecting to:', mmwaveUrl);
+  
+  mmwaveEventSource = new EventSource(mmwaveUrl);
+  console.log('[INIT-MMWAVE] EventSource created, waiting for messages...');
+  
+  mmwaveEventSource.onmessage = (event: MessageEvent) => {
+    try {
+      const data = JSON.parse(event.data);
+      console.log('[MMWAVE-MSG] ✅ Event received - frame:', data.frame, 'points:', data.points?.length || 0, 'ts:', data.ts);
+      
+      // Transform stream format to expected format
+      // Note: data.ts comes in seconds (Unix timestamp), convert to milliseconds
+      const timestampMs = data.ts ? Math.floor(data.ts * 1000) : Date.now();
+      const pointCloud = data.points || [];
+      const presence = data.presence ?? (data.num_objects > 0);
+      
+      console.log('[MMWAVE-MSG] 📊 Transformed:', { points: pointCloud.length, presence, ts: timestampMs });
+      
+      latestMmwaveData = {
+        point_cloud: pointCloud,
+        presence,
+        timestamp_ms: timestampMs,
+      };
+    } catch (error) {
+      console.error('[MMWAVE-MSG] ❌ Failed to parse:', error, 'Raw:', event.data?.substring(0, 100));
+    }
+  };
+  
+  mmwaveEventSource.onerror = (err) => {
+    console.error('[MMWAVE-ERROR] ❌ Stream error:', err);
+    console.error('[MMWAVE-ERROR] EventSource readyState:', mmwaveEventSource?.readyState);
+    closeMmwaveStream();
+    console.log('[MMWAVE-ERROR] 🔄 Reconnecting in 3s...');
+    setTimeout(() => initMmwaveStream(), 3000);
+  };
+}
+
+function closeMmwaveStream(): void {
+  if (mmwaveEventSource) {
+    console.log('[CLOSE-MMWAVE] Closing EventSource');
+    mmwaveEventSource.close();
+    mmwaveEventSource = null;
+  }
+}
+
+function getMmwaveData(): MmwavePreviewResponse {
+  const data = latestMmwaveData || { point_cloud: [], presence: false, timestamp_ms: Date.now() };
+  if (latestMmwaveData === null) {
+    console.log('[GET-MMWAVE] ⚠️ No data yet, returning empty');
+  } else {
+    console.log('[GET-MMWAVE] ✅ Returning', (data.point_cloud as unknown[])?.length || 0, 'points');
+  }
+  return data;
 }
 
 function applyFreshness(snapshot: DashboardSnapshot, staleThresholdMs = 7000): DashboardSnapshot {
@@ -407,15 +563,21 @@ export const dashboardApi = {
 
   async fetchSnapshot(): Promise<DashboardSnapshot> {
     try {
-      const [status, aiCameraStatus, thermalStatus, metrics, mmwave] = await Promise.all([
+      const [status, aiCameraStatus, thermalStatus, metrics] = await Promise.all([
         fetchJson<BackendStatusResponse>(`${API_BASE}/api/status`),
         fetchJson<SensorStatusResponse>(`${API_BASE}/api/ai_camera/status`),
         fetchJson<SensorStatusResponse>(`${API_BASE}/api/thermal/status`),
         fetchJson<DashboardMetricsResponse>(`${API_BASE}/api/dashboard/metrics`),
-        fetchJson<MmwavePreviewResponse>(`${API_BASE}/api/preview/output/mmwave`),
       ]);
-      return applyFreshness(toDashboardSnapshot(status, aiCameraStatus, thermalStatus, metrics, mmwave));
-    } catch {
+      
+      // Use latest data from SSE stream
+      const mmwave = getMmwaveData();
+      
+      let snapshot = applyFreshness(toDashboardSnapshot(status, aiCameraStatus, thermalStatus, metrics, mmwave));
+      snapshot = applyWeaponUpdate(snapshot);
+      return snapshot;
+    } catch (error) {
+      console.error('Failed to fetch snapshot:', error);
       return toUnavailableSnapshot('backend unreachable');
     }
   },
@@ -466,17 +628,10 @@ export const dashboardApi = {
    * @param action 'run' | 'stop' | 'restart'
    */
   async controlComponent<T = ThermalControlResult>(
-    component: 'thermal' | 'ai_camera',
+    component: 'thermal' | 'ai_camera' | 'mmwave',
     action: 'run' | 'stop' | 'restart',
   ): Promise<T> {
     return postEmpty<T>(`${API_BASE}/api/${component}/${action}`);
-  },
-
-  async controlSensor<T = Record<string, unknown>>(
-    sensor: 'thermal' | 'webcam' | 'mmwave',
-    action: 'run' | 'stop' | 'restart',
-  ): Promise<T> {
-    return postEmpty<T>(`${API_BASE}/api/${action}/${sensor}`);
   },
 
   // Convenience shortcuts
@@ -493,15 +648,15 @@ export const dashboardApi = {
   },
 
   async runMmwave(): Promise<Record<string, unknown>> {
-    return this.controlSensor('mmwave', 'run');
+    return this.controlComponent('mmwave', 'run');
   },
 
   async stopMmwave(): Promise<Record<string, unknown>> {
-    return this.controlSensor('mmwave', 'stop');
+    return this.controlComponent('mmwave', 'stop');
   },
 
   async restartMmwave(): Promise<Record<string, unknown>> {
-    return this.controlSensor('mmwave', 'restart');
+    return this.controlComponent('mmwave', 'restart');
   },
 
   async fetchMmwaveStatus(): Promise<Record<string, unknown>> {
@@ -536,8 +691,8 @@ export const dashboardApi = {
     return postEmpty<ControlResult>(`${API_BASE}/api/restart/${encodeURIComponent(radarId)}`);
   },
 
-  async reset(): Promise<Record<string, unknown>> {
-    return postEmpty<Record<string, unknown>>(`${API_BASE}/api/restart_all`);
+  async reset(radarId = 'radar_main'): Promise<ControlResult> {
+    return postEmpty<ControlResult>(`${API_BASE}/api/config/reset/${encodeURIComponent(radarId)}`);
   },
 
   async runAll(): Promise<Record<string, unknown>> {
@@ -560,8 +715,8 @@ export const dashboardApi = {
     return fetchJson<Record<string, unknown>>(`${API_BASE}/api/config`);
   },
 
-  async updateConfig(settings: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return putJson<Record<string, unknown>>(`${API_BASE}/api/config`, { settings });
+  async updateConfig(config: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return putJson<Record<string, unknown>>(`${API_BASE}/api/config`, config);
   },
 
   async resetConfig(): Promise<Record<string, unknown>> {
@@ -580,10 +735,8 @@ export const dashboardApi = {
     return fetchJson<Record<string, unknown>>(`${API_BASE}/api/devices/v4l2`);
   },
 
-  async fetchV4l2Formats(index: number | string): Promise<Record<string, unknown>> {
-    const url = new URL('/api/devices/v4l2/formats', API_BASE);
-    url.searchParams.set('index', String(index));
-    return fetchJson<Record<string, unknown>>(url.toString());
+  async fetchV4l2Formats(): Promise<Record<string, unknown>> {
+    return fetchJson<Record<string, unknown>>(`${API_BASE}/api/devices/v4l2/formats`);
   },
 
   async fetchSerialDevices(): Promise<Record<string, unknown>> {
@@ -602,8 +755,8 @@ export const dashboardApi = {
     return putJson<Record<string, unknown>>(`${API_BASE}/api/model/profiles`, payload);
   },
 
-  async applyModelProfile(profileId: string): Promise<Record<string, unknown>> {
-    return postJson<Record<string, unknown>>(`${API_BASE}/api/model/profiles/apply`, { id: profileId });
+  async applyModelProfile(profileName: string): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/model/profiles/apply`, { profile_name: profileName });
   },
 
   async snapshotModelProfile(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -619,7 +772,7 @@ export const dashboardApi = {
   },
 
   async applyAiCameraProfileByName(profileName: string): Promise<Record<string, unknown>> {
-    return postJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/profiles/apply_by_name`, { name: profileName });
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/profiles/apply_by_name`, { profile_name: profileName });
   },
 
   async fetchAiCameraStatus(): Promise<Record<string, unknown>> {
@@ -686,19 +839,27 @@ export const dashboardApi = {
     return mediaUrl('/embed/webcam');
   },
 
-  async createWebrtcWebcamOffer(sdp: string, type = 'offer'): Promise<Record<string, unknown>> {
-    return postJson<Record<string, unknown>>(`${API_BASE}/api/webrtc/webcam/offer`, { sdp, type });
+  async createWebrtcWebcamOffer(offer: string): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/webrtc/webcam/offer`, { offer });
   },
 
-  async createWebrtcAiCameraOffer(sdp: string, type = 'offer'): Promise<Record<string, unknown>> {
-    return postJson<Record<string, unknown>>(`${API_BASE}/api/webrtc/ai_camera/offer`, { sdp, type });
+  async createWebrtcAiCameraOffer(offer: string): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/webrtc/ai_camera/offer`, { offer });
   },
 
-  async createAiCameraWebrtcOffer(sdp: string, type = 'offer'): Promise<Record<string, unknown>> {
-    return postJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/webrtc/offer`, { sdp, type });
+  async createAiCameraWebrtcOffer(offer: string): Promise<Record<string, unknown>> {
+    return postJson<Record<string, unknown>>(`${API_BASE}/api/ai_camera/webrtc/offer`, { offer });
   },
 
   aiCameraPreviewUrl(): string {
     return mediaUrl('/api/ai_camera/preview/live');
   },
+
+  initMmwaveStream,
+  closeMmwaveStream,
+  getMmwaveData,
+
+  initEventsSocket,
+  closeEventsSocket,
+  applyWeaponUpdate,
 };

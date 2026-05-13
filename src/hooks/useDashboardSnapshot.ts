@@ -66,6 +66,11 @@ export function useDashboardSnapshot() {
 
     connectWebcamSocket();
     connectThermalSocket();
+    console.log('[SNAPSHOT-HOOK] 🌊 Initializing mmwave stream...');
+    dashboardApi.initMmwaveStream();
+    console.log('[SNAPSHOT-HOOK] 📡 Initializing events websocket...');
+    dashboardApi.initEventsSocket();
+    console.log('[SNAPSHOT-HOOK] ✅ All streams initialized');
 
     refreshTimer = window.setInterval(() => {
       void refreshSnapshot();
@@ -78,6 +83,8 @@ export function useDashboardSnapshot() {
       if (thermalReconnectTimer !== null) window.clearTimeout(thermalReconnectTimer);
       if (webcamSocket && webcamSocket.readyState === WebSocket.OPEN) webcamSocket.close();
       if (thermalSocket && thermalSocket.readyState === WebSocket.OPEN) thermalSocket.close();
+      dashboardApi.closeMmwaveStream();
+      dashboardApi.closeEventsSocket();
     };
   }, [hydratePrefs, setSnapshot, updateSnapshot]);
 
